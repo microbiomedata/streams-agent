@@ -1,0 +1,1190 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://microbiomedata.github.io/streams-agent/output/notebooks/inter_annotator_agreement_analysis_executed/">
+      
+      
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>Inter annotator agreement analysis executed - streams-agent</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.84d31ad4.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../css/ansi-colours.css">
+    
+      <link rel="stylesheet" href="../../../css/jupyter-cells.css">
+    
+      <link rel="stylesheet" href="../../../css/pandas-dataframe.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#inter-annotator-agreement-analysis-for-streams-evaluations" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="streams-agent" class="md-header__button md-logo" aria-label="streams-agent" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            streams-agent
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Inter annotator agreement analysis executed
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/microbiomedata/streams-agent" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="streams-agent" class="md-nav__button md-logo" aria-label="streams-agent" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    streams-agent
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/microbiomedata/streams-agent" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-loading-and-basic-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Loading and Basic Statistics
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overall-inter-annotator-agreement-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overall Inter-Annotator Agreement Analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interactive-summary-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interactive Summary Dashboard
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#distribution-of-kappa-scores" class="md-nav__link">
+    <span class="md-ellipsis">
+      Distribution of Kappa Scores
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#individual-paper-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Individual Paper Analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#completion-rate-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Completion Rate Analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deep-dive-specific-paper-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deep Dive: Specific Paper Analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rating-distribution-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rating Distribution Analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusions-and-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conclusions and Recommendations
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Export Results
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script>
+(function() {
+  function addWidgetsRenderer() {
+    var requireJsScript = document.createElement('script');
+    requireJsScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js';
+
+    var mimeElement = document.querySelector('script[type="application/vnd.jupyter.widget-view+json"]');
+    var jupyterWidgetsScript = document.createElement('script');
+    var widgetRendererSrc = 'https://unpkg.com/@jupyter-widgets/html-manager@*/dist/embed-amd.js';
+    var widgetState;
+
+    // Fallback for older version:
+    try {
+      widgetState = mimeElement && JSON.parse(mimeElement.innerHTML);
+
+      if (widgetState && (widgetState.version_major < 2 || !widgetState.version_major)) {
+        widgetRendererSrc = 'jupyter-js-widgets@*/dist/embed.js';
+      }
+    } catch(e) {}
+
+    jupyterWidgetsScript.src = widgetRendererSrc;
+
+    document.body.appendChild(requireJsScript);
+    document.body.appendChild(jupyterWidgetsScript);
+  }
+
+  document.addEventListener('DOMContentLoaded', addWidgetsRenderer);
+}());
+</script>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="inter-annotator-agreement-analysis-for-streams-evaluations">Inter-Annotator Agreement Analysis for STREAMS Evaluations</h1>
+<p>This notebook provides comprehensive analysis and visualization of inter-annotator agreement for STREAMS (Standards for Technical Reporting in Environmental and host-Associated Microbiome Studies) evaluations.</p>
+<h2 id="overview">Overview</h2>
+<ul>
+<li><strong>Purpose</strong>: Analyze agreement between multiple reviewers evaluating research papers against STREAMS criteria</li>
+<li><strong>Metrics</strong>: Cohen's Kappa, simple agreement rates, completion rates</li>
+<li><strong>Data</strong>: 140+ human-reviewed STREAMS evaluations from <code>evals/streams-gdrive/</code></li>
+</ul>
+<h2 id="setup">Setup</h2>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python">import sys
+from pathlib import Path
+import warnings
+
+# Add project root to path
+project_root = Path.cwd().parent
+sys.path.insert(0, str(project_root / &quot;src&quot;))
+
+# Import core modules
+from streams_agent.evals.inter_annotator_agreement import compute_inter_annotator_agreement
+from streams_agent.evals.visualization import (
+    plot_kappa_distribution,
+    plot_kappa_by_paper,
+    plot_agreement_matrix_interactive,
+    create_agreement_summary_plot,
+    plot_completion_rates
+)
+from streams_agent.loaders import load_streams_assessment_from_excel, load_streams_checklist_from_csv
+from streams_agent.models import AssessmentRating
+
+# Visualization libraries
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.graph_objects as go
+import plotly.express as px
+import pandas as pd
+
+# Configure plotting
+plt.style.use('default')
+sns.set_palette(&quot;husl&quot;)
+%matplotlib inline
+
+# Suppress warnings for cleaner output
+warnings.filterwarnings('ignore')
+
+print(&quot;✅ Setup complete!&quot;)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>✅ Setup complete!
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="data-loading-and-basic-statistics">Data Loading and Basic Statistics</h2>
+<p>First, let's load the evaluation data and compute basic statistics.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python"># Define paths
+eval_dir = project_root / &quot;evals&quot; / &quot;streams-gdrive&quot; / &quot;Benchmarking STREAMS Exemplars&quot;
+template_path = project_root / &quot;src&quot; / &quot;streams_agent&quot; / &quot;template&quot; / &quot;streams.csv&quot;
+
+print(f&quot;📁 Evaluation directory: {eval_dir}&quot;)
+print(f&quot;📄 Template path: {template_path}&quot;)
+print(f&quot;📊 Directory exists: {eval_dir.exists()}&quot;)
+print(f&quot;📋 Template exists: {template_path.exists()}&quot;)
+
+if eval_dir.exists():
+    # Count evaluation files
+    eval_files = list(eval_dir.glob(&quot;*.xlsx&quot;))
+    eval_files = [f for f in eval_files if not f.name.startswith('~')]  # Skip temp files
+    print(f&quot;\n📈 Found {len(eval_files)} evaluation files&quot;)
+
+    # Load STREAMS checklist template
+    if template_path.exists():
+        checklist = load_streams_checklist_from_csv(template_path)
+        print(f&quot;📋 STREAMS checklist: {checklist.name} v{checklist.version}&quot;)
+        print(f&quot;📝 Total checklist items: {len(checklist.items)}&quot;)
+    else:
+        print(&quot;⚠️  Template file not found&quot;)
+        checklist = None
+else:
+    print(&quot;❌ Evaluation directory not found&quot;)
+    eval_files = []
+    checklist = None
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>📁 Evaluation directory: /Users/cjm/repos/evals/streams-gdrive/Benchmarking STREAMS Exemplars
+📄 Template path: /Users/cjm/repos/src/streams_agent/template/streams.csv
+📊 Directory exists: False
+📋 Template exists: False
+❌ Evaluation directory not found
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="overall-inter-annotator-agreement-analysis">Overall Inter-Annotator Agreement Analysis</h2>
+<p>Compute Cohen's Kappa and agreement rates across all papers with multiple reviewers.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python">if eval_dir.exists():
+    # Compute inter-annotator agreement
+    print(&quot;🔄 Computing inter-annotator agreement...&quot;)
+    results = compute_inter_annotator_agreement(eval_dir, min_reviewers=2)
+
+    print(&quot;\n&quot; + &quot;=&quot;*50)
+    print(&quot;📊 INTER-ANNOTATOR AGREEMENT RESULTS&quot;)
+    print(&quot;=&quot;*50)
+
+    print(f&quot;🎯 Overall Cohen's Kappa: {results['overall_kappa']:.3f}&quot;)
+    print(f&quot;📋 Simple Agreement Rate: {results['agreement_rate']:.1%}&quot;)
+    print(f&quot;📄 Papers Analyzed: {results['num_papers_analyzed']}&quot;)
+    print(f&quot;🔄 Pairwise Comparisons: {results['num_pairwise_comparisons']}&quot;)
+
+    # Interpret Kappa score
+    kappa = results['overall_kappa']
+    if kappa &amp;lt; 0:
+        interpretation = &quot;Poor (worse than chance)&quot;
+    elif kappa &amp;lt; 0.2:
+        interpretation = &quot;Slight&quot;
+    elif kappa &amp;lt; 0.4:
+        interpretation = &quot;Fair&quot;
+    elif kappa &amp;lt; 0.6:
+        interpretation = &quot;Moderate&quot;
+    elif kappa &amp;lt; 0.8:
+        interpretation = &quot;Substantial&quot;
+    else:
+        interpretation = &quot;Almost Perfect&quot;
+
+    print(f&quot;\n🎭 Kappa Interpretation: {interpretation}&quot;)
+    print(&quot;\n📖 Kappa Scale (Landis &amp;amp; Koch, 1977):&quot;)
+    print(&quot;   &amp;lt; 0.00: Poor&quot;)
+    print(&quot;   0.00-0.20: Slight&quot;)
+    print(&quot;   0.21-0.40: Fair&quot;)
+    print(&quot;   0.41-0.60: Moderate&quot;)
+    print(&quot;   0.61-0.80: Substantial&quot;)
+    print(&quot;   0.81-1.00: Almost Perfect&quot;)
+else:
+    results = None
+    print(&quot;❌ Cannot compute agreement - evaluation directory not found&quot;)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>❌ Cannot compute agreement - evaluation directory not found
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="interactive-summary-dashboard">Interactive Summary Dashboard</h2>
+<p>A comprehensive overview of all agreement metrics in an interactive dashboard.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python">if results:
+    # Create interactive summary dashboard
+    summary_fig = create_agreement_summary_plot(results)
+    summary_fig.show()
+else:
+    print(&quot;❌ No results available for dashboard&quot;)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>❌ No results available for dashboard
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="distribution-of-kappa-scores">Distribution of Kappa Scores</h2>
+<p>Analyze how agreement varies across different papers.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python">if results:
+    # Plot kappa distribution
+    kappa_dist_fig = plot_kappa_distribution(results)
+    plt.show()
+
+    # Show statistics
+    per_paper_kappa = results.get('per_paper_kappa', {})
+    if per_paper_kappa and isinstance(per_paper_kappa, dict):
+        kappa_values = list(per_paper_kappa.values())
+        kappa_df = pd.DataFrame({'kappa': kappa_values})
+
+        print(&quot;\n📊 Kappa Score Statistics:&quot;)
+        print(kappa_df.describe())
+
+        # Count papers by agreement level
+        agreement_levels = {
+            'Poor (&amp;lt; 0)': sum(1 for k in kappa_values if k &amp;lt; 0),
+            'Slight (0-0.2)': sum(1 for k in kappa_values if 0 &amp;lt;= k &amp;lt; 0.2),
+            'Fair (0.2-0.4)': sum(1 for k in kappa_values if 0.2 &amp;lt;= k &amp;lt; 0.4),
+            'Moderate (0.4-0.6)': sum(1 for k in kappa_values if 0.4 &amp;lt;= k &amp;lt; 0.6),
+            'Substantial (0.6-0.8)': sum(1 for k in kappa_values if 0.6 &amp;lt;= k &amp;lt; 0.8),
+            'Almost Perfect (0.8+)': sum(1 for k in kappa_values if k &amp;gt;= 0.8)
+        }
+
+        print(&quot;\n🎭 Papers by Agreement Level:&quot;)
+        for level, count in agreement_levels.items():
+            if count &amp;gt; 0:
+                print(f&quot;   {level}: {count} papers&quot;)
+else:
+    print(&quot;❌ No results available for kappa distribution plot&quot;)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>❌ No results available for kappa distribution plot
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="individual-paper-analysis">Individual Paper Analysis</h2>
+<p>Examine agreement scores for individual papers to identify best and worst cases.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python">if results:
+    # Plot kappa scores by paper (top 20)
+    paper_kappa_fig = plot_kappa_by_paper(results, top_n=20)
+    plt.show()
+
+    # Show best and worst performing papers
+    per_paper_kappa = results.get('per_paper_kappa', {})
+    if per_paper_kappa and isinstance(per_paper_kappa, dict):
+        sorted_papers = sorted(per_paper_kappa.items(), key=lambda x: x[1], reverse=True)
+
+        print(&quot;\n🏆 Top 5 Papers (Highest Agreement):&quot;)
+        for i, (paper_id, kappa) in enumerate(sorted_papers[:5], 1):
+            print(f&quot;   {i}. {paper_id}: κ = {kappa:.3f}&quot;)
+
+        print(&quot;\n⚠️  Bottom 5 Papers (Lowest Agreement):&quot;)
+        for i, (paper_id, kappa) in enumerate(sorted_papers[-5:], 1):
+            print(f&quot;   {i}. {paper_id}: κ = {kappa:.3f}&quot;)
+else:
+    print(&quot;❌ No results available for individual paper analysis&quot;)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>❌ No results available for individual paper analysis
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="completion-rate-analysis">Completion Rate Analysis</h2>
+<p>Analyze how completely evaluators filled out the STREAMS checklist.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python">if eval_dir.exists():
+    # Plot completion rates
+    completion_fig = plot_completion_rates(eval_dir, min_assessments=2)
+    plt.show()
+
+    # Calculate overall completion statistics
+    all_assessments = []
+    for file_path in eval_dir.glob(&quot;*.xlsx&quot;):
+        if file_path.name.startswith('~'):
+            continue
+        assessment = load_streams_assessment_from_excel(file_path)
+        if assessment:
+            all_assessments.append(assessment)
+
+    if all_assessments:
+        completion_rates = [a.get_completion_rate() for a in all_assessments]
+        avg_completion = sum(completion_rates) / len(completion_rates)
+
+        print(f&quot;\n📊 Completion Rate Statistics:&quot;)
+        print(f&quot;   Total assessments: {len(all_assessments)}&quot;)
+        print(f&quot;   Average completion rate: {avg_completion:.1%}&quot;)
+        print(f&quot;   Min completion rate: {min(completion_rates):.1%}&quot;)
+        print(f&quot;   Max completion rate: {max(completion_rates):.1%}&quot;)
+
+        # Count fully completed assessments
+        fully_completed = sum(1 for rate in completion_rates if rate &amp;gt;= 0.95)
+        print(f&quot;   Fully completed (≥95%): {fully_completed} ({fully_completed/len(completion_rates):.1%})&quot;)
+else:
+    print(&quot;❌ Cannot analyze completion rates - evaluation directory not found&quot;)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>❌ Cannot analyze completion rates - evaluation directory not found
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="deep-dive-specific-paper-analysis">Deep Dive: Specific Paper Analysis</h2>
+<p>Choose a specific paper to examine detailed agreement patterns between reviewers.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python"># Select a paper for detailed analysis
+if results and results.get('per_paper_kappa'):
+    # Choose the paper with highest agreement for demo
+    per_paper_kappa = results['per_paper_kappa']
+    if isinstance(per_paper_kappa, dict) and per_paper_kappa:
+        best_paper = max(per_paper_kappa.items(), key=lambda x: x[1])
+        selected_paper_id = best_paper[0]
+
+        print(f&quot;🎯 Analyzing paper: {selected_paper_id} (κ = {best_paper[1]:.3f})&quot;)
+
+        # Create interactive agreement matrix
+        if eval_dir.exists():
+            interactive_fig = plot_agreement_matrix_interactive(eval_dir, selected_paper_id)
+            if interactive_fig:
+                interactive_fig.show()
+            else:
+                print(&quot;⚠️  Could not create interactive plot for this paper&quot;)
+
+        # Load assessments for this paper to show details
+        paper_assessments = []
+        for file_path in eval_dir.glob(&quot;*.xlsx&quot;):
+            if file_path.name.startswith('~'):
+                continue
+            assessment = load_streams_assessment_from_excel(file_path)
+            if assessment and assessment.paper_id == selected_paper_id:
+                paper_assessments.append(assessment)
+
+        if paper_assessments:
+            print(f&quot;\n📋 Found {len(paper_assessments)} assessments for {selected_paper_id}:&quot;)
+            for assessment in paper_assessments:
+                completion_rate = assessment.get_completion_rate()
+                rated_items = sum(1 for a in assessment.assessments if a.rating is not None)
+                print(f&quot;   {assessment.evaluator_id}: {completion_rate:.1%} complete ({rated_items}/{len(assessment.assessments)} items)&quot;)
+    else:
+        print(&quot;❌ No per-paper kappa data available&quot;)
+else:
+    print(&quot;❌ No results available for detailed paper analysis&quot;)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>❌ No results available for detailed paper analysis
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="rating-distribution-analysis">Rating Distribution Analysis</h2>
+<p>Examine how different rating types (Yes/No/NA) are distributed across evaluations.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python">if eval_dir.exists():
+    # Collect all ratings
+    all_ratings = []
+    for file_path in eval_dir.glob(&quot;*.xlsx&quot;):
+        if file_path.name.startswith('~'):
+            continue
+        assessment = load_streams_assessment_from_excel(file_path)
+        if assessment:
+            for item_assessment in assessment.assessments:
+                if item_assessment.rating:
+                    all_ratings.append(item_assessment.rating.value)
+
+    if all_ratings:
+        # Create rating distribution plot
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+
+        # Count plot
+        rating_counts = pd.Series(all_ratings).value_counts()
+        colors = ['lightgreen', 'lightcoral', 'lightblue', 'lightyellow']
+        rating_counts.plot(kind='bar', ax=ax1, color=colors[:len(rating_counts)])
+        ax1.set_title('Distribution of Ratings (Counts)')
+        ax1.set_xlabel('Rating')
+        ax1.set_ylabel('Count')
+        ax1.tick_params(axis='x', rotation=45)
+
+        # Add count labels on bars
+        for i, (rating, count) in enumerate(rating_counts.items()):
+            ax1.text(i, count + max(rating_counts) * 0.01, str(count), 
+                    ha='center', va='bottom', fontweight='bold')
+
+        # Pie chart
+        ax2.pie(rating_counts.values, labels=rating_counts.index, autopct='%1.1f%%',
+               colors=colors[:len(rating_counts)], startangle=90)
+        ax2.set_title('Distribution of Ratings (Proportions)')
+
+        plt.tight_layout()
+        plt.show()
+
+        # Print statistics
+        total_ratings = len(all_ratings)
+        print(f&quot;\n📊 Rating Distribution Statistics:&quot;)
+        print(f&quot;   Total rated items: {total_ratings:,}&quot;)
+        for rating, count in rating_counts.items():
+            percentage = count / total_ratings * 100
+            print(f&quot;   {rating}: {count:,} ({percentage:.1f}%)&quot;)
+
+        # Calculate agreement tendency
+        yes_rate = rating_counts.get('Yes', 0) / total_ratings
+        no_rate = rating_counts.get('No', 0) / total_ratings
+        na_rate = rating_counts.get('NA', 0) / total_ratings
+
+        print(f&quot;\n🎯 Key Insights:&quot;)
+        print(f&quot;   Positive compliance rate: {yes_rate:.1%}&quot;)
+        print(f&quot;   Non-compliance rate: {no_rate:.1%}&quot;)
+        print(f&quot;   Not applicable rate: {na_rate:.1%}&quot;)
+
+        if yes_rate &amp;gt; 0.6:
+            print(f&quot;   📈 High overall compliance with STREAMS guidelines&quot;)
+        elif yes_rate &amp;lt; 0.4:
+            print(f&quot;   📉 Low overall compliance with STREAMS guidelines&quot;)
+        else:
+            print(f&quot;   📊 Moderate overall compliance with STREAMS guidelines&quot;)
+else:
+    print(&quot;❌ Cannot analyze rating distribution - evaluation directory not found&quot;)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>❌ Cannot analyze rating distribution - evaluation directory not found
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="conclusions-and-recommendations">Conclusions and Recommendations</h2>
+<p>Summary of findings and suggestions for improving evaluation consistency.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python">if results:
+    print(&quot;📝 ANALYSIS SUMMARY AND RECOMMENDATIONS&quot;)
+    print(&quot;=&quot;*50)
+
+    kappa = results['overall_kappa']
+    agreement_rate = results['agreement_rate']
+    num_papers = results['num_papers_analyzed']
+
+    print(f&quot;\n🎯 Overall Assessment:&quot;)
+    print(f&quot;   Cohen's Kappa: {kappa:.3f} ({interpretation})&quot;)
+    print(f&quot;   Simple Agreement: {agreement_rate:.1%}&quot;)
+    print(f&quot;   Papers Analyzed: {num_papers}&quot;)
+
+    print(f&quot;\n💡 Recommendations:&quot;)
+
+    if kappa &amp;lt; 0.4:
+        print(&quot;   🔴 LOW AGREEMENT - Consider:&quot;)
+        print(&quot;     • Additional evaluator training&quot;)
+        print(&quot;     • Clearer STREAMS guidelines&quot;)
+        print(&quot;     • Pilot evaluation sessions&quot;)
+        print(&quot;     • Regular calibration meetings&quot;)
+    elif kappa &amp;lt; 0.6:
+        print(&quot;   🟡 MODERATE AGREEMENT - Consider:&quot;)
+        print(&quot;     • Periodic evaluator calibration&quot;)
+        print(&quot;     • Review of ambiguous items&quot;)
+        print(&quot;     • Additional examples for unclear criteria&quot;)
+    else:
+        print(&quot;   🟢 GOOD AGREEMENT - Maintain:&quot;)
+        print(&quot;     • Current training procedures&quot;)
+        print(&quot;     • Regular quality checks&quot;)
+        print(&quot;     • Ongoing evaluator support&quot;)
+
+    # Completion rate recommendations
+    if 'avg_completion' in locals():
+        if avg_completion &amp;lt; 0.8:
+            print(&quot;\n📋 COMPLETION RATES - Consider:&quot;)
+            print(&quot;     • Simplifying evaluation interface&quot;)
+            print(&quot;     • Reducing evaluation burden&quot;)
+            print(&quot;     • Providing completion incentives&quot;)
+
+    print(f&quot;\n🔍 Areas for Further Investigation:&quot;)
+    print(&quot;   • Item-level agreement patterns&quot;)
+    print(&quot;   • Evaluator-specific biases&quot;)
+    print(&quot;   • Impact of paper characteristics on agreement&quot;)
+    print(&quot;   • Training effectiveness measurement&quot;)
+
+    print(f&quot;\n📊 Data Quality Notes:&quot;)
+    print(f&quot;   • Based on {results['num_pairwise_comparisons']} pairwise comparisons&quot;)
+    print(f&quot;   • Minimum 2 reviewers per paper&quot;)
+    print(f&quot;   • Excludes papers with &amp;lt;5 common rated items&quot;)
+
+print(&quot;\n&quot; + &quot;=&quot;*50)
+print(&quot;📋 Analysis complete! Use the visualizations above to explore&quot;)
+print(&quot;specific patterns and identify areas for improvement.&quot;)
+print(&quot;=&quot;*50)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>
+==================================================
+📋 Analysis complete! Use the visualizations above to explore
+specific patterns and identify areas for improvement.
+==================================================
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="export-results">Export Results</h2>
+<p>Save key results and visualizations for reporting.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+
+<pre><code class="language-python"># Create output directory
+output_dir = project_root / &quot;output&quot; / &quot;iaa_analysis&quot;
+output_dir.mkdir(parents=True, exist_ok=True)
+
+if results:
+    # Save summary statistics
+    import json
+
+    summary_stats = {
+        'overall_kappa': results['overall_kappa'],
+        'agreement_rate': results['agreement_rate'],
+        'num_papers_analyzed': results['num_papers_analyzed'],
+        'num_pairwise_comparisons': results['num_pairwise_comparisons'],
+        'interpretation': interpretation
+    }
+
+    with open(output_dir / 'iaa_summary.json', 'w') as f:
+        json.dump(summary_stats, f, indent=2)
+
+    # Save per-paper results
+    per_paper_kappa = results.get('per_paper_kappa', {})
+    if per_paper_kappa and isinstance(per_paper_kappa, dict):
+        per_paper_df = pd.DataFrame([
+            {'paper_id': paper_id, 'kappa': kappa}
+            for paper_id, kappa in per_paper_kappa.items()
+        ])
+        per_paper_df.to_csv(output_dir / 'per_paper_kappa.csv', index=False)
+
+    print(f&quot;✅ Results exported to: {output_dir}&quot;)
+    print(f&quot;   📄 Summary: iaa_summary.json&quot;)
+    print(f&quot;   📊 Per-paper data: per_paper_kappa.csv&quot;)
+else:
+    print(&quot;❌ No results to export&quot;)
+</code></pre>
+
+
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>❌ No results to export
+</code>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../../..", "features": ["content.tabs.link"], "search": "../../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>
