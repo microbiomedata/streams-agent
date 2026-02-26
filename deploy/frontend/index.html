@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STREAMS Agent — Prototype</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }
+    h1 { font-size: 1.5rem; margin-bottom: 4px; }
+    .subtitle { color: #666; margin-bottom: 24px; font-size: 0.9rem; }
+    label { display: block; font-weight: 600; margin-bottom: 4px; margin-top: 16px; }
+    input[type="text"], input[type="file"] { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
+    button { margin-top: 20px; padding: 10px 24px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    #status-area { margin-top: 24px; padding: 16px; border-radius: 8px; display: none; }
+    #status-area.running { display: block; background: #fef3c7; border: 1px solid #f59e0b; }
+    #status-area.complete { display: block; background: #d1fae5; border: 1px solid #10b981; }
+    #status-area.error { display: block; background: #fee2e2; border: 1px solid #ef4444; }
+    .status-label { font-weight: 600; margin-bottom: 8px; }
+    .job-id { font-family: monospace; font-size: 0.85rem; color: #666; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #e5e7eb; font-size: 0.9rem; }
+    th { background: #f9fafb; }
+    .rating-yes { color: #059669; font-weight: 600; }
+    .rating-no { color: #dc2626; font-weight: 600; }
+    .rating-partial { color: #d97706; font-weight: 600; }
+    .rating-na { color: #6b7280; }
+    .summary { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+    .summary-item { padding: 8px 14px; border-radius: 6px; background: #f3f4f6; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>STREAMS Agent</h1>
+  <p class="subtitle">Evaluate microbiome papers against the STREAMS checklist</p>
+
+  <form id="eval-form">
+    <label for="paper-id">Paper ID</label>
+    <input type="text" id="paper-id" placeholder="e.g. smith2024_gut_microbiome" required>
+
+    <label for="pdf-file">PDF (optional for prototype)</label>
+    <input type="file" id="pdf-file" accept=".pdf">
+
+    <button type="submit" id="submit-btn">Evaluate</button>
+  </form>
+
+  <div id="status-area">
+    <div class="status-label" id="status-label"></div>
+    <div class="job-id" id="job-id-display"></div>
+    <div id="results-area"></div>
+  </div>
+
+  <script>
+    const AUTH_TOKEN = "Bearer test-token";
+    let pollInterval = null;
+
+    document.getElementById("eval-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const paperId = document.getElementById("paper-id").value.trim();
+      if (!paperId) return;
+
+      const btn = document.getElementById("submit-btn");
+      const statusArea = document.getElementById("status-area");
+      const statusLabel = document.getElementById("status-label");
+      const jobIdDisplay = document.getElementById("job-id-display");
+      const resultsArea = document.getElementById("results-area");
+
+      btn.disabled = true;
+      statusArea.className = "running";
+      statusLabel.textContent = "Submitting...";
+      jobIdDisplay.textContent = "";
+      resultsArea.innerHTML = "";
+
+      const resp = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": AUTH_TOKEN },
+        body: JSON.stringify({ paper_id: paperId }),
+      });
+
+      if (!resp.ok) {
+        statusArea.className = "error";
+        statusLabel.textContent = "Submission failed: " + resp.statusText;
+        btn.disabled = false;
+        return;
+      }
+
+      const { job_id } = await resp.json();
+      statusLabel.textContent = "Running evaluation...";
+      jobIdDisplay.textContent = "Job ID: " + job_id;
+
+      // Poll for results
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        const statusResp = await fetch("/api/status/" + job_id, {
+          headers: { "Authorization": AUTH_TOKEN },
+        });
+        if (!statusResp.ok) return;
+
+        const job = await statusResp.json();
+        if (job.status === "complete") {
+          clearInterval(pollInterval);
+          pollInterval = null;
+          btn.disabled = false;
+          statusArea.className = "complete";
+          statusLabel.textContent = "Evaluation complete";
+          renderResults(job.results, resultsArea);
+        } else if (job.error) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+          btn.disabled = false;
+          statusArea.className = "error";
+          statusLabel.textContent = "Error: " + job.error;
+        }
+      }, 2000);
+    });
+
+    function renderResults(results, container) {
+      if (!results) return;
+
+      // Summary
+      const s = results.summary;
+      let html = `<div class="summary">
+        <div class="summary-item"><strong>${s.total_items}</strong> items</div>
+        <div class="summary-item rating-yes">Yes: ${s.yes}</div>
+        <div class="summary-item rating-no">No: ${s.no}</div>
+        <div class="summary-item rating-partial">Partial: ${s.partial}</div>
+        <div class="summary-item rating-na">NA: ${s.na}</div>
+      </div>`;
+
+      // Table
+      html += `<table>
+        <thead><tr><th>Item</th><th>Rating</th><th>Comments</th></tr></thead>
+        <tbody>`;
+      for (const a of results.assessments) {
+        const cls = "rating-" + a.rating.toLowerCase();
+        html += `<tr>
+          <td>${a.item_id}</td>
+          <td class="${cls}">${a.rating}</td>
+          <td>${a.comments}</td>
+        </tr>`;
+      }
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
