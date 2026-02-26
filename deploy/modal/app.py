@@ -3,7 +3,7 @@
 import modal
 import uuid
 import time
-import os
+import json
 
 image = modal.Image.debian_slim().pip_install("fastapi[standard]")
 
@@ -11,6 +11,9 @@ app = modal.App("streams-agent-prototype")
 
 # In-memory job store (ephemeral — fine for prototype)
 job_store = modal.Dict.from_name("streams-jobs", create_if_missing=True)
+
+# Index of all job IDs (modal.Dict doesn't support iteration)
+job_index = modal.Dict.from_name("streams-job-index", create_if_missing=True)
 
 MOCK_RESULTS = {
     "assessments": [
@@ -29,6 +32,8 @@ MOCK_RESULTS = {
     },
 }
 
+INDEX_KEY = "_all_jobs"
+
 
 @app.function(image=image)
 @modal.fastapi_endpoint(method="POST")
@@ -41,6 +46,11 @@ def submit(data: dict) -> dict:
         "submitted_at": time.time(),
         "results": None,
     }
+    # Append to index
+    ids = job_index.get(INDEX_KEY, [])
+    ids.append(job_id)
+    job_index[INDEX_KEY] = ids
+
     evaluate.spawn(job_id)
     return {"job_id": job_id}
 
@@ -52,6 +62,25 @@ def status(job_id: str) -> dict:
     if job_id not in job_store:
         return {"error": "Job not found", "job_id": job_id}
     return job_store[job_id]
+
+
+@app.function(image=image)
+@modal.fastapi_endpoint(method="GET")
+def jobs() -> dict:
+    """List all jobs with their status (without full results)."""
+    ids = job_index.get(INDEX_KEY, [])
+    job_list = []
+    for jid in ids:
+        if jid in job_store:
+            job = job_store[jid]
+            job_list.append({
+                "job_id": jid,
+                "paper_id": job.get("paper_id", "unknown"),
+                "status": job.get("status", "unknown"),
+                "submitted_at": job.get("submitted_at"),
+                "completed_at": job.get("completed_at"),
+            })
+    return {"jobs": job_list}
 
 
 @app.function(image=image)
