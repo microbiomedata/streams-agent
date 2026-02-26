@@ -42,13 +42,14 @@
     .status-complete { color: #059669; font-weight: 600; }
     .no-jobs { color: #9ca3af; font-style: italic; padding: 16px 0; }
 
-    /* Detail panel */
-    #detail-panel { margin-top: 24px; padding: 16px; border-radius: 8px; display: none; background: #f0fdf4; border: 1px solid #10b981; }
-    #detail-panel.visible { display: block; }
-    .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .detail-title { font-weight: 600; }
-    .close-btn { background: none; color: #6b7280; border: 1px solid #d1d5db; padding: 4px 10px; font-size: 0.85rem; }
-    .close-btn:hover { background: #f3f4f6; }
+    /* Page views */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Detail page */
+    .back-link { display: inline-block; margin-bottom: 16px; color: #2563eb; text-decoration: none; font-size: 0.9rem; cursor: pointer; }
+    .back-link:hover { text-decoration: underline; }
+    .detail-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 16px; }
 
     /* Results */
     .results-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
@@ -59,7 +60,7 @@
     .rating-partial { color: #d97706; font-weight: 600; }
     .rating-na { color: #6b7280; }
     .summary { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
-    .summary-item { padding: 6px 12px; border-radius: 6px; background: white; font-size: 0.85rem; border: 1px solid #e5e7eb; }
+    .summary-item { padding: 6px 12px; border-radius: 6px; background: #f9fafb; font-size: 0.85rem; border: 1px solid #e5e7eb; }
   </style>
 </head>
 <body>
@@ -67,40 +68,54 @@
     <span id="auth-status">Loading...</span>
   </div>
 
-  <h1>STREAMS Agent</h1>
-  <p class="subtitle">Evaluate microbiome papers against the STREAMS checklist</p>
+  <!-- PAGE: Jobs list -->
+  <div id="page-jobs" class="page active">
+    <h1>STREAMS Agent</h1>
+    <p class="subtitle">Evaluate microbiome papers against the STREAMS checklist</p>
 
-  <form id="eval-form" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
-    <div style="flex:1; min-width:200px;">
-      <label for="paper-id">Paper ID <span style="font-weight:normal; color:#9ca3af;">(auto-filled from file)</span></label>
-      <input type="text" id="paper-id" placeholder="e.g. smith2024_gut_microbiome">
+    <form id="eval-form" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+      <div style="flex:1; min-width:200px;">
+        <label for="paper-id">Paper ID <span style="font-weight:normal; color:#9ca3af;">(auto-filled from file)</span></label>
+        <input type="text" id="paper-id" placeholder="e.g. smith2024_gut_microbiome">
+      </div>
+      <div>
+        <label for="pdf-file">PDF / DOCX</label>
+        <input type="file" id="pdf-file" accept=".pdf,.docx">
+      </div>
+      <button type="submit" id="submit-btn" style="margin-top:0; height:38px;">Submit</button>
+    </form>
+    <div class="extracting" id="extracting-indicator">Extracting title from file...</div>
+
+    <div class="rate-warning" id="rate-warning"></div>
+
+    <h2>Jobs</h2>
+    <div id="jobs-area">
+      <p class="no-jobs">Loading...</p>
     </div>
-    <div>
-      <label for="pdf-file">PDF / DOCX</label>
-      <input type="file" id="pdf-file" accept=".pdf,.docx">
-    </div>
-    <button type="submit" id="submit-btn" style="margin-top:0; height:38px;">Submit</button>
-  </form>
-  <div class="extracting" id="extracting-indicator">Extracting title from file...</div>
-
-  <div class="rate-warning" id="rate-warning"></div>
-
-  <h2>Jobs</h2>
-  <div id="jobs-area">
-    <p class="no-jobs">Loading...</p>
   </div>
 
-  <div id="detail-panel">
-    <div class="detail-header">
-      <span class="detail-title" id="detail-title"></span>
-      <button class="close-btn btn-sm" onclick="closeDetail()">Close</button>
-    </div>
+  <!-- PAGE: Detail view -->
+  <div id="page-detail" class="page">
+    <a class="back-link" onclick="showJobsPage()">&larr; Back to jobs</a>
+    <div class="detail-title" id="detail-title"></div>
     <div id="detail-results"></div>
   </div>
 
   <script>
     const jobs = new Map();
     let pollTimer = null;
+
+    // --- Page navigation ---
+    function showJobsPage() {
+      document.getElementById("page-jobs").className = "page active";
+      document.getElementById("page-detail").className = "page";
+    }
+
+    function showDetailPage() {
+      document.getElementById("page-jobs").className = "page";
+      document.getElementById("page-detail").className = "page active";
+      window.scrollTo(0, 0);
+    }
 
     // --- Auth ---
     async function checkAuth() {
@@ -131,7 +146,6 @@
         }
       }
       renderJobs();
-      // Resume polling if any are still running
       const hasRunning = [...jobs.values()].some(j => j.status === "running");
       if (hasRunning) startPolling();
     }
@@ -142,16 +156,14 @@
       if (!file) return;
 
       const paperId = document.getElementById("paper-id");
-      // Only auto-fill if empty
       if (paperId.value.trim()) return;
 
       const indicator = document.getElementById("extracting-indicator");
       indicator.className = "extracting visible";
 
-      // Read file as base64
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = reader.result.split(",")[1]; // strip data:...;base64, prefix
+        const base64 = reader.result.split(",")[1];
         const resp = await fetch("/api/extract-title", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -162,7 +174,7 @@
         const data = await resp.json();
         if (data.slug && !paperId.value.trim()) {
           paperId.value = data.slug;
-          paperId.title = data.title; // show full title on hover
+          paperId.title = data.title;
         }
       };
       reader.readAsDataURL(file);
@@ -266,23 +278,22 @@
     function showDetail(jobId) {
       const job = jobs.get(jobId);
       if (!job) return;
-      // If we don't have results yet (loaded from server), fetch them
       if (!job.results) {
         fetch("/api/status/" + jobId).then(r => r.json()).then(data => {
           if (data.results) {
             job.results = data.results;
             renderDetail(job);
+            showDetailPage();
           }
         });
         return;
       }
       renderDetail(job);
+      showDetailPage();
     }
 
     function renderDetail(job) {
-      const panel = document.getElementById("detail-panel");
       document.getElementById("detail-title").textContent = job.paper_id;
-      panel.className = "visible";
       const container = document.getElementById("detail-results");
 
       const s = job.results.summary;
@@ -302,10 +313,6 @@
       }
       html += `</tbody></table>`;
       container.innerHTML = html;
-    }
-
-    function closeDetail() {
-      document.getElementById("detail-panel").className = "";
     }
 
     // --- Init ---
