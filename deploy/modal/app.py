@@ -35,11 +35,24 @@ MOCK_RESULTS = {
 
 INDEX_KEY = "_all_jobs"
 ANON_LIMIT = 3  # jobs per hour for anonymous users
+MAX_RUNNING = 3  # max concurrent running jobs per user
 
 
 def _hour_bucket() -> str:
     """Current hour bucket key for rate limiting."""
     return str(math.floor(time.time() / 3600))
+
+
+def _count_running_jobs(user_id: str) -> int:
+    """Count how many jobs are currently running for a user."""
+    ids = job_index.get(INDEX_KEY, [])
+    count = 0
+    for jid in ids:
+        if jid in job_store:
+            job = job_store[jid]
+            if job.get("user_id") == user_id and job.get("status") == "running":
+                count += 1
+    return count
 
 
 def _extract_title_from_pdf(data: bytes) -> str:
@@ -139,7 +152,16 @@ def submit(data: dict) -> dict:
     user_id = data.get("user_id", "anon:unknown")
     is_anon = user_id.startswith("anon:")
 
-    # Rate limit anonymous users
+    # Limit concurrent running jobs for all users
+    running = _count_running_jobs(user_id)
+    if running >= MAX_RUNNING:
+        return {
+            "error": f"You already have {running} running jobs. Please wait for one to finish.",
+            "running": running,
+            "max_running": MAX_RUNNING,
+        }
+
+    # Rate limit anonymous users (hourly submission cap)
     if is_anon:
         bucket = _hour_bucket()
         rate_key = f"rate:{user_id}:{bucket}"

@@ -83,9 +83,7 @@
   </form>
   <div class="extracting" id="extracting-indicator">Extracting title from file...</div>
 
-  <div class="rate-warning" id="rate-warning">
-    Rate limit reached (3 per hour for anonymous users). <a href="/api/auth/login">Sign in with ORCID</a> for unlimited access.
-  </div>
+  <div class="rate-warning" id="rate-warning"></div>
 
   <h2>Jobs</h2>
   <div id="jobs-area">
@@ -197,7 +195,9 @@
       btn.textContent = "Submit";
 
       if (result.error) {
-        document.getElementById("rate-warning").className = "rate-warning visible";
+        const warn = document.getElementById("rate-warning");
+        warn.textContent = result.error;
+        warn.className = "rate-warning visible";
         return;
       }
 
