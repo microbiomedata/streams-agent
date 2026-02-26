@@ -3,17 +3,16 @@
 import modal
 import uuid
 import time
-import json
+import math
 
 image = modal.Image.debian_slim().pip_install("fastapi[standard]")
 
 app = modal.App("streams-agent-prototype")
 
-# In-memory job store (ephemeral — fine for prototype)
+# In-memory stores (ephemeral — fine for prototype)
 job_store = modal.Dict.from_name("streams-jobs", create_if_missing=True)
-
-# Index of all job IDs (modal.Dict doesn't support iteration)
 job_index = modal.Dict.from_name("streams-job-index", create_if_missing=True)
+rate_store = modal.Dict.from_name("streams-rate-limits", create_if_missing=True)
 
 MOCK_RESULTS = {
     "assessments": [
@@ -33,16 +32,44 @@ MOCK_RESULTS = {
 }
 
 INDEX_KEY = "_all_jobs"
+ANON_LIMIT = 3  # jobs per hour for anonymous users
+
+
+def _hour_bucket() -> str:
+    """Current hour bucket key for rate limiting."""
+    return str(math.floor(time.time() / 3600))
 
 
 @app.function(image=image)
 @modal.fastapi_endpoint(method="POST")
 def submit(data: dict) -> dict:
-    """Accept a job submission, spawn async evaluation, return job ID."""
+    """Accept a job submission, spawn async evaluation, return job ID.
+
+    Expects data with:
+      - paper_id: str
+      - user_id: str (ORCID iD or "anon:<ip>")
+    """
+    user_id = data.get("user_id", "anon:unknown")
+    is_anon = user_id.startswith("anon:")
+
+    # Rate limit anonymous users
+    if is_anon:
+        bucket = _hour_bucket()
+        rate_key = f"rate:{user_id}:{bucket}"
+        count = rate_store.get(rate_key, 0)
+        if count >= ANON_LIMIT:
+            return {
+                "error": "Rate limit exceeded. Sign in with ORCID for unlimited access.",
+                "limit": ANON_LIMIT,
+                "remaining": 0,
+            }
+        rate_store[rate_key] = count + 1
+
     job_id = str(uuid.uuid4())
     job_store[job_id] = {
         "status": "running",
         "paper_id": data.get("paper_id", "unknown"),
+        "user_id": user_id,
         "submitted_at": time.time(),
         "results": None,
     }
@@ -52,7 +79,13 @@ def submit(data: dict) -> dict:
     job_index[INDEX_KEY] = ids
 
     evaluate.spawn(job_id)
-    return {"job_id": job_id}
+
+    resp = {"job_id": job_id}
+    if is_anon:
+        bucket = _hour_bucket()
+        rate_key = f"rate:{user_id}:{bucket}"
+        resp["remaining"] = ANON_LIMIT - rate_store.get(rate_key, 0)
+    return resp
 
 
 @app.function(image=image)
@@ -66,17 +99,20 @@ def status(job_id: str) -> dict:
 
 @app.function(image=image)
 @modal.fastapi_endpoint(method="GET")
-def jobs() -> dict:
-    """List all jobs with their status (without full results)."""
+def jobs(user_id: str = "") -> dict:
+    """List jobs, optionally filtered by user_id."""
     ids = job_index.get(INDEX_KEY, [])
     job_list = []
     for jid in ids:
         if jid in job_store:
             job = job_store[jid]
+            if user_id and job.get("user_id") != user_id:
+                continue
             job_list.append({
                 "job_id": jid,
                 "paper_id": job.get("paper_id", "unknown"),
                 "status": job.get("status", "unknown"),
+                "user_id": job.get("user_id", ""),
                 "submitted_at": job.get("submitted_at"),
                 "completed_at": job.get("completed_at"),
             })

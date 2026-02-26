@@ -1,14 +1,4 @@
 export async function onRequestPost(context) {
-  // Mock auth check
-  const auth = context.request.headers.get("Authorization");
-  if (auth !== "Bearer test-token") {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // Forward to Modal
   const modalUrl = context.env.MODAL_SUBMIT_URL;
   if (!modalUrl) {
     return new Response(JSON.stringify({ error: "MODAL_SUBMIT_URL not configured" }), {
@@ -17,7 +7,14 @@ export async function onRequestPost(context) {
     });
   }
 
+  // Determine user identity: ORCID session or anonymous (IP-based)
+  const session = parseSession(context.request);
+  const clientIp = context.request.headers.get("CF-Connecting-IP") || "unknown";
+  const userId = session ? session.orcid : `anon:${clientIp}`;
+
   const body = await context.request.json();
+  body.user_id = userId;
+
   const resp = await fetch(modalUrl, {
     method: "POST",
     headers: {
@@ -29,7 +26,20 @@ export async function onRequestPost(context) {
 
   const result = await resp.json();
   return new Response(JSON.stringify(result), {
-    status: resp.status,
+    status: result.error ? 429 : resp.status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function parseSession(request) {
+  const cookie = request.headers.get("Cookie") || "";
+  const match = cookie.match(/streams_session=([^;]+)/);
+  if (!match) return null;
+  try {
+    const session = JSON.parse(atob(match[1]));
+    if (session.exp && session.exp < Math.floor(Date.now() / 1000)) return null;
+    return session;
+  } catch {
+    return null;
+  }
 }

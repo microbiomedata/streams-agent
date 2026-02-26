@@ -1,13 +1,4 @@
 export async function onRequestGet(context) {
-  // Mock auth check
-  const auth = context.request.headers.get("Authorization");
-  if (auth !== "Bearer test-token") {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
   const jobId = context.params.id;
   const modalUrl = context.env.MODAL_STATUS_URL;
   if (!modalUrl) {

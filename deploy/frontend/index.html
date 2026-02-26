@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STREAMS Agent — Prototype</title>
+  <title>STREAMS Agent</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }
@@ -15,7 +15,19 @@
     button { padding: 10px 24px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; }
     button:hover { background: #1d4ed8; }
     button:disabled { background: #94a3b8; cursor: not-allowed; }
-    .btn-sm { padding: 4px 12px; font-size: 0.85rem; margin-top: 0; }
+    .btn-sm { padding: 4px 12px; font-size: 0.85rem; }
+
+    /* Auth bar */
+    .auth-bar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 20px; padding: 10px 14px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 0.9rem; }
+    .auth-bar .user-info { color: #374151; }
+    .auth-bar .orcid-id { font-family: monospace; color: #059669; }
+    .auth-bar a { color: #2563eb; text-decoration: none; }
+    .auth-bar a:hover { text-decoration: underline; }
+    .anon-notice { color: #d97706; font-size: 0.85rem; }
+
+    /* Rate limit warning */
+    .rate-warning { background: #fef3c7; border: 1px solid #f59e0b; padding: 10px 14px; border-radius: 6px; margin-top: 12px; font-size: 0.9rem; color: #92400e; display: none; }
+    .rate-warning.visible { display: block; }
 
     /* Jobs table */
     .jobs-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -47,6 +59,10 @@
   </style>
 </head>
 <body>
+  <div class="auth-bar" id="auth-bar">
+    <span id="auth-status">Loading...</span>
+  </div>
+
   <h1>STREAMS Agent</h1>
   <p class="subtitle">Evaluate microbiome papers against the STREAMS checklist</p>
 
@@ -62,6 +78,10 @@
     <button type="submit" id="submit-btn" style="margin-top:0; height:38px;">Submit</button>
   </form>
 
+  <div class="rate-warning" id="rate-warning">
+    Rate limit reached (3 per hour for anonymous users). <a href="/api/auth/login">Sign in with ORCID</a> for unlimited access.
+  </div>
+
   <h2>Jobs</h2>
   <div id="jobs-area">
     <p class="no-jobs">No jobs submitted yet.</p>
@@ -76,35 +96,51 @@
   </div>
 
   <script>
-    const AUTH_TOKEN = "Bearer test-token";
-    const jobs = new Map(); // job_id -> {paper_id, status, submitted_at, results}
+    const jobs = new Map();
     let pollTimer = null;
+    let currentUser = null;
 
-    // Submit a new job
+    // Check auth status on load
+    async function checkAuth() {
+      const resp = await fetch("/api/auth/me");
+      const data = await resp.json();
+      const bar = document.getElementById("auth-bar");
+      if (data.logged_in) {
+        currentUser = data;
+        bar.innerHTML = `<span class="user-info">${data.name || "Researcher"} &middot; <span class="orcid-id">${data.orcid}</span></span> <a href="/api/auth/logout">Sign out</a>`;
+      } else {
+        bar.innerHTML = `<span class="anon-notice">Anonymous (3 jobs/hour limit)</span> <a href="/api/auth/login">Sign in with ORCID</a>`;
+      }
+    }
+    checkAuth();
+
+    // Submit
     document.getElementById("eval-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const paperId = document.getElementById("paper-id").value.trim();
       if (!paperId) return;
 
+      document.getElementById("rate-warning").className = "rate-warning";
+
       const resp = await fetch("/api/submit", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": AUTH_TOKEN },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paper_id: paperId }),
       });
 
-      if (!resp.ok) {
-        alert("Submission failed: " + resp.statusText);
+      const result = await resp.json();
+
+      if (result.error) {
+        document.getElementById("rate-warning").className = "rate-warning visible";
         return;
       }
 
-      const { job_id } = await resp.json();
-      jobs.set(job_id, { paper_id: paperId, status: "running", submitted_at: Date.now() / 1000, results: null });
+      jobs.set(result.job_id, { paper_id: paperId, status: "running", submitted_at: Date.now() / 1000, results: null });
       document.getElementById("paper-id").value = "";
       renderJobs();
       startPolling();
     });
 
-    // Poll running jobs
     function startPolling() {
       if (pollTimer) return;
       pollTimer = setInterval(pollRunningJobs, 2000);
@@ -118,7 +154,7 @@
         return;
       }
       for (const [jobId, job] of running) {
-        const resp = await fetch("/api/status/" + jobId, { headers: { "Authorization": AUTH_TOKEN } });
+        const resp = await fetch("/api/status/" + jobId);
         if (!resp.ok) continue;
         const data = await resp.json();
         if (data.status === "complete") {
@@ -130,7 +166,6 @@
       renderJobs();
     }
 
-    // Render the jobs table
     function renderJobs() {
       const area = document.getElementById("jobs-area");
       if (jobs.size === 0) {
@@ -140,7 +175,6 @@
       let html = `<table class="jobs-table">
         <thead><tr><th>Paper ID</th><th>Status</th><th>Submitted</th><th></th></tr></thead>
         <tbody>`;
-      // Show newest first
       const entries = [...jobs.entries()].reverse();
       for (const [jobId, job] of entries) {
         const time = new Date(job.submitted_at * 1000).toLocaleTimeString();
@@ -159,7 +193,6 @@
       area.innerHTML = html;
     }
 
-    // Show detail panel for a completed job
     function showDetail(jobId) {
       const job = jobs.get(jobId);
       if (!job || !job.results) return;
