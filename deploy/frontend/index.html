@@ -29,6 +29,10 @@
     .rate-warning { background: #fef3c7; border: 1px solid #f59e0b; padding: 10px 14px; border-radius: 6px; margin-top: 12px; font-size: 0.9rem; color: #92400e; display: none; }
     .rate-warning.visible { display: block; }
 
+    /* Extracting indicator */
+    .extracting { color: #6b7280; font-size: 0.85rem; margin-top: 4px; display: none; }
+    .extracting.visible { display: block; }
+
     /* Jobs table */
     .jobs-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     .jobs-table th, .jobs-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 0.9rem; }
@@ -68,15 +72,16 @@
 
   <form id="eval-form" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
     <div style="flex:1; min-width:200px;">
-      <label for="paper-id">Paper ID</label>
-      <input type="text" id="paper-id" placeholder="e.g. smith2024_gut_microbiome" required>
+      <label for="paper-id">Paper ID <span style="font-weight:normal; color:#9ca3af;">(auto-filled from file)</span></label>
+      <input type="text" id="paper-id" placeholder="e.g. smith2024_gut_microbiome">
     </div>
     <div>
-      <label for="pdf-file">PDF</label>
-      <input type="file" id="pdf-file" accept=".pdf">
+      <label for="pdf-file">PDF / DOCX</label>
+      <input type="file" id="pdf-file" accept=".pdf,.docx">
     </div>
     <button type="submit" id="submit-btn" style="margin-top:0; height:38px;">Submit</button>
   </form>
+  <div class="extracting" id="extracting-indicator">Extracting title from file...</div>
 
   <div class="rate-warning" id="rate-warning">
     Rate limit reached (3 per hour for anonymous users). <a href="/api/auth/login">Sign in with ORCID</a> for unlimited access.
@@ -84,7 +89,7 @@
 
   <h2>Jobs</h2>
   <div id="jobs-area">
-    <p class="no-jobs">No jobs submitted yet.</p>
+    <p class="no-jobs">Loading...</p>
   </div>
 
   <div id="detail-panel">
@@ -98,28 +103,87 @@
   <script>
     const jobs = new Map();
     let pollTimer = null;
-    let currentUser = null;
 
-    // Check auth status on load
+    // --- Auth ---
     async function checkAuth() {
       const resp = await fetch("/api/auth/me");
       const data = await resp.json();
       const bar = document.getElementById("auth-bar");
       if (data.logged_in) {
-        currentUser = data;
         bar.innerHTML = `<span class="user-info">${data.name || "Researcher"} &middot; <span class="orcid-id">${data.orcid}</span></span> <a href="/api/auth/logout">Sign out</a>`;
       } else {
         bar.innerHTML = `<span class="anon-notice">Anonymous (3 jobs/hour limit)</span> <a href="/api/auth/login">Sign in with ORCID</a>`;
       }
     }
-    checkAuth();
 
-    // Submit
+    // --- Load existing jobs on page load ---
+    async function loadJobs() {
+      const resp = await fetch("/api/jobs");
+      if (!resp.ok) { renderJobs(); return; }
+      const data = await resp.json();
+      for (const job of (data.jobs || [])) {
+        if (!jobs.has(job.job_id)) {
+          jobs.set(job.job_id, {
+            paper_id: job.paper_id,
+            status: job.status,
+            submitted_at: job.submitted_at,
+            completed_at: job.completed_at,
+            results: null,
+          });
+        }
+      }
+      renderJobs();
+      // Resume polling if any are still running
+      const hasRunning = [...jobs.values()].some(j => j.status === "running");
+      if (hasRunning) startPolling();
+    }
+
+    // --- File title extraction ---
+    document.getElementById("pdf-file").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const paperId = document.getElementById("paper-id");
+      // Only auto-fill if empty
+      if (paperId.value.trim()) return;
+
+      const indicator = document.getElementById("extracting-indicator");
+      indicator.className = "extracting visible";
+
+      // Read file as base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result.split(",")[1]; // strip data:...;base64, prefix
+        const resp = await fetch("/api/extract-title", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_bytes: base64, filename: file.name }),
+        });
+        indicator.className = "extracting";
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.slug && !paperId.value.trim()) {
+          paperId.value = data.slug;
+          paperId.title = data.title; // show full title on hover
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // --- Submit ---
     document.getElementById("eval-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const paperId = document.getElementById("paper-id").value.trim();
-      if (!paperId) return;
+      const paperIdInput = document.getElementById("paper-id");
+      const paperId = paperIdInput.value.trim();
+      if (!paperId) {
+        paperIdInput.focus();
+        paperIdInput.placeholder = "Please enter a paper ID or attach a file";
+        return;
+      }
 
+      const btn = document.getElementById("submit-btn");
+      btn.disabled = true;
+      btn.textContent = "Submitting...";
       document.getElementById("rate-warning").className = "rate-warning";
 
       const resp = await fetch("/api/submit", {
@@ -129,6 +193,8 @@
       });
 
       const result = await resp.json();
+      btn.disabled = false;
+      btn.textContent = "Submit";
 
       if (result.error) {
         document.getElementById("rate-warning").className = "rate-warning visible";
@@ -136,11 +202,13 @@
       }
 
       jobs.set(result.job_id, { paper_id: paperId, status: "running", submitted_at: Date.now() / 1000, results: null });
-      document.getElementById("paper-id").value = "";
+      paperIdInput.value = "";
+      document.getElementById("pdf-file").value = "";
       renderJobs();
       startPolling();
     });
 
+    // --- Polling ---
     function startPolling() {
       if (pollTimer) return;
       pollTimer = setInterval(pollRunningJobs, 2000);
@@ -166,6 +234,7 @@
       renderJobs();
     }
 
+    // --- Render ---
     function renderJobs() {
       const area = document.getElementById("jobs-area");
       if (jobs.size === 0) {
@@ -177,15 +246,16 @@
         <tbody>`;
       const entries = [...jobs.entries()].reverse();
       for (const [jobId, job] of entries) {
-        const time = new Date(job.submitted_at * 1000).toLocaleTimeString();
+        const t = new Date(job.submitted_at * 1000).toLocaleTimeString();
         const statusCls = job.status === "complete" ? "status-complete" : "status-running";
+        const statusText = job.status === "running" ? "running..." : job.status;
         const viewBtn = job.status === "complete"
           ? `<button class="btn-sm" onclick="showDetail('${jobId}')">View</button>`
           : "";
         html += `<tr>
           <td>${job.paper_id}</td>
-          <td class="${statusCls}">${job.status}</td>
-          <td>${time}</td>
+          <td class="${statusCls}">${statusText}</td>
+          <td>${t}</td>
           <td>${viewBtn}</td>
         </tr>`;
       }
@@ -195,7 +265,21 @@
 
     function showDetail(jobId) {
       const job = jobs.get(jobId);
-      if (!job || !job.results) return;
+      if (!job) return;
+      // If we don't have results yet (loaded from server), fetch them
+      if (!job.results) {
+        fetch("/api/status/" + jobId).then(r => r.json()).then(data => {
+          if (data.results) {
+            job.results = data.results;
+            renderDetail(job);
+          }
+        });
+        return;
+      }
+      renderDetail(job);
+    }
+
+    function renderDetail(job) {
       const panel = document.getElementById("detail-panel");
       document.getElementById("detail-title").textContent = job.paper_id;
       panel.className = "visible";
@@ -223,6 +307,10 @@
     function closeDetail() {
       document.getElementById("detail-panel").className = "";
     }
+
+    // --- Init ---
+    checkAuth();
+    loadJobs();
   </script>
 </body>
 </html>

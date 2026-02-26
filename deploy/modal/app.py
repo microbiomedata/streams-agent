@@ -4,8 +4,10 @@ import modal
 import uuid
 import time
 import math
+import io
+import re
 
-image = modal.Image.debian_slim().pip_install("fastapi[standard]")
+image = modal.Image.debian_slim().pip_install("fastapi[standard]", "pymupdf", "python-docx")
 
 app = modal.App("streams-agent-prototype")
 
@@ -40,15 +42,100 @@ def _hour_bucket() -> str:
     return str(math.floor(time.time() / 3600))
 
 
+def _extract_title_from_pdf(data: bytes) -> str:
+    """Extract title from PDF using pymupdf. Tries metadata first, then first lines.
+
+    Returns empty string if the file cannot be parsed as a valid PDF.
+    """
+    import pymupdf
+
+    if len(data) < 10 or not data[:5].startswith(b"%PDF-"):
+        return ""
+
+    doc = pymupdf.open(stream=data, filetype="pdf")
+
+    # Try metadata title
+    meta = doc.metadata
+    if meta and meta.get("title") and meta["title"].strip():
+        title = meta["title"].strip()
+        doc.close()
+        return title
+
+    # Fall back to first page text — title is usually the largest/first text
+    if doc.page_count > 0:
+        page = doc[0]
+        blocks = page.get_text("blocks")
+        # blocks are (x0, y0, x1, y1, text, block_no, block_type)
+        # Take the first non-empty text block
+        for block in sorted(blocks, key=lambda b: (b[1], b[0])):
+            text = block[4].strip() if len(block) > 4 else ""
+            # Skip very short lines (page numbers, headers) and very long ones (abstracts)
+            if 10 < len(text) < 300:
+                doc.close()
+                # Clean up: take first line if multi-line
+                return text.split("\n")[0].strip()
+
+    doc.close()
+    return ""
+
+
+def _extract_title_from_docx(data: bytes) -> str:
+    """Extract title from DOCX — first heading or first paragraph.
+
+    Returns empty string if the file cannot be parsed as a valid DOCX.
+    """
+    from docx import Document
+
+    if len(data) < 10 or data[:2] != b"PK":
+        return ""
+
+    doc = Document(io.BytesIO(data))
+    # Try headings first
+    for para in doc.paragraphs:
+        if para.style.name.startswith("Heading") and para.text.strip():
+            return para.text.strip()
+    # Fall back to first non-empty paragraph
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if 10 < len(text) < 300:
+            return text
+    return ""
+
+
+def _slugify(title: str) -> str:
+    """Convert a title to a short paper-id-style slug."""
+    title = title.lower()
+    title = re.sub(r"[^a-z0-9\s]", "", title)
+    words = title.split()[:6]
+    return "_".join(words) if words else "untitled"
+
+
+@app.function(image=image)
+@modal.fastapi_endpoint(method="POST")
+def extract_title(data: dict) -> dict:
+    """Extract title from a document. Accepts JSON with base64-encoded file_bytes and filename."""
+    import base64
+    file_bytes = data.get("file_bytes", "")
+    filename = data.get("filename", "")
+    decoded = base64.b64decode(file_bytes)
+    lower = filename.lower()
+
+    title = ""
+    if lower.endswith(".pdf"):
+        title = _extract_title_from_pdf(decoded)
+    elif lower.endswith(".docx"):
+        title = _extract_title_from_docx(decoded)
+    else:
+        return {"title": "", "slug": "", "error": f"Unsupported file type: {filename}"}
+
+    slug = _slugify(title) if title else ""
+    return {"title": title, "slug": slug}
+
+
 @app.function(image=image)
 @modal.fastapi_endpoint(method="POST")
 def submit(data: dict) -> dict:
-    """Accept a job submission, spawn async evaluation, return job ID.
-
-    Expects data with:
-      - paper_id: str
-      - user_id: str (ORCID iD or "anon:<ip>")
-    """
+    """Accept a job submission, spawn async evaluation, return job ID."""
     user_id = data.get("user_id", "anon:unknown")
     is_anon = user_id.startswith("anon:")
 
@@ -73,7 +160,6 @@ def submit(data: dict) -> dict:
         "submitted_at": time.time(),
         "results": None,
     }
-    # Append to index
     ids = job_index.get(INDEX_KEY, [])
     ids.append(job_id)
     job_index[INDEX_KEY] = ids
