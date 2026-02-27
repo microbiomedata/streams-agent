@@ -1,0 +1,49 @@
+"""Tests for agentic_review engine."""
+
+import os
+import pytest
+from pathlib import Path
+
+from streams_agent.agentic_review.engine import _load_prompt
+
+
+def test_load_system_prompt():
+    """System prompt loads from markdown file."""
+    prompt = _load_prompt("system_prompt.md")
+    assert "STREAMS" in prompt
+    assert "Rating Guidelines" in prompt
+
+
+def test_load_user_prompt_with_substitution():
+    """User prompt loads and substitutes variables."""
+    prompt = _load_prompt("user_prompt.md", pdf_path="/tmp/paper.pdf", csv_path="/tmp/checklist.csv")
+    assert "/tmp/paper.pdf" in prompt
+    assert "/tmp/checklist.csv" in prompt
+
+
+@pytest.mark.integration
+def test_run_review(tmp_path):
+    """Integration test: run a full agentic review against a real PDF."""
+    from streams_agent.agentic_review import run_review
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        pytest.skip("ANTHROPIC_API_KEY not set")
+
+    test_pdfs = list(Path("evals/streams-gdrive").glob("*.pdf"))
+    if not test_pdfs:
+        pytest.skip("No test PDFs available")
+
+    pdf_path = test_pdfs[0]
+    template_path = Path("src/streams_agent/template/streams.csv")
+
+    assessment = run_review(
+        pdf_path=pdf_path,
+        template_path=template_path,
+        paper_id="integration_test",
+        work_dir=tmp_path,
+    )
+
+    assert assessment.paper_id == "integration_test"
+    assert len(assessment.assessments) > 0
+    rated = [a for a in assessment.assessments if a.rating is not None]
+    assert len(rated) > 0
