@@ -216,9 +216,9 @@ def prepare_yaml_workspace(template_path: Path, work_dir: Path) -> Path:
         >>> from pathlib import Path
         >>> import tempfile, yaml
         >>> template = Path("src/streams_agent/template/streams.csv")
-        >>> with tempfile.TemporaryDirectory() as td:
-        ...     out = prepare_yaml_workspace(template, Path(td))
-        ...     out.name
+        >>> td = tempfile.mkdtemp()
+        >>> out = prepare_yaml_workspace(template, Path(td))
+        >>> out.name
         'checklist.yaml'
         >>> with open(out) as f:
         ...     items = yaml.safe_load(f)
