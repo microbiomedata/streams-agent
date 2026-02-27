@@ -16,22 +16,45 @@ job_store = modal.Dict.from_name("streams-jobs", create_if_missing=True)
 job_index = modal.Dict.from_name("streams-job-index", create_if_missing=True)
 rate_store = modal.Dict.from_name("streams-rate-limits", create_if_missing=True)
 
-MOCK_RESULTS = {
-    "assessments": [
-        {"item_id": "1.1", "rating": "Yes", "comments": "Abstract clearly states study design.", "confidence": 0.9},
-        {"item_id": "1.2", "rating": "No", "comments": "No mention of environment type in abstract.", "confidence": 0.85},
-        {"item_id": "2.1", "rating": "Partial", "comments": "Methods section lacks detail on sample collection.", "confidence": 0.7},
-        {"item_id": "2.2", "rating": "Yes", "comments": "DNA extraction protocol well documented.", "confidence": 0.95},
-        {"item_id": "3.1", "rating": "NA", "comments": "Not applicable to this study type.", "confidence": 0.8},
-    ],
-    "summary": {
-        "total_items": 5,
-        "yes": 2,
-        "no": 1,
-        "partial": 1,
-        "na": 1,
+MOCK_STEPS = [
+    {
+        "message": "Reading paper and extracting sections...",
+        "assessments": [],
     },
-}
+    {
+        "message": "Evaluating Section 1: Title and Abstract...",
+        "assessments": [
+            {"item_id": "1.1", "rating": "Yes", "comments": "Abstract clearly states study design.", "confidence": 0.9},
+            {"item_id": "1.2", "rating": "No", "comments": "No mention of environment type in abstract.", "confidence": 0.85},
+        ],
+    },
+    {
+        "message": "Evaluating Section 2: Methods...",
+        "assessments": [
+            {"item_id": "2.1", "rating": "Partial", "comments": "Methods section lacks detail on sample collection.", "confidence": 0.7},
+            {"item_id": "2.2", "rating": "Yes", "comments": "DNA extraction protocol well documented.", "confidence": 0.95},
+            {"item_id": "2.3", "rating": "Yes", "comments": "Sequencing platform and parameters reported.", "confidence": 0.9},
+        ],
+    },
+    {
+        "message": "Evaluating Section 3: Results and Data Availability...",
+        "assessments": [
+            {"item_id": "3.1", "rating": "NA", "comments": "Not applicable to this study type.", "confidence": 0.8},
+            {"item_id": "3.2", "rating": "Yes", "comments": "Raw sequences deposited in public repository.", "confidence": 0.95},
+        ],
+    },
+    {
+        "message": "Evaluating Section 4: Statistical Analysis...",
+        "assessments": [
+            {"item_id": "4.1", "rating": "Partial", "comments": "Alpha diversity reported but beta diversity analysis incomplete.", "confidence": 0.75},
+            {"item_id": "4.2", "rating": "No", "comments": "No correction for multiple comparisons.", "confidence": 0.85},
+        ],
+    },
+    {
+        "message": "Generating summary...",
+        "assessments": [],
+    },
+]
 
 INDEX_KEY = "_all_jobs"
 ANON_LIMIT = 3  # jobs per hour for anonymous users
@@ -177,6 +200,7 @@ def submit(data: dict) -> dict:
     job_id = str(uuid.uuid4())
     job_store[job_id] = {
         "status": "running",
+        "progress": "Queued...",
         "paper_id": data.get("paper_id", "unknown"),
         "user_id": user_id,
         "submitted_at": time.time(),
@@ -227,12 +251,38 @@ def jobs(user_id: str = "") -> dict:
     return {"jobs": job_list}
 
 
-@app.function(image=image)
+@app.function(image=image, timeout=300)
 def evaluate(job_id: str):
-    """Mock evaluation — sleep then store results."""
-    time.sleep(5)  # Simulate agent work
+    """Mock evaluation — simulate multi-step agent with progress updates."""
+    import random
+
+    all_assessments = []
+
+    for step in MOCK_STEPS:
+        # Update progress message
+        job = job_store[job_id]
+        job["progress"] = step["message"]
+        job_store[job_id] = job
+
+        # Simulate work (2-5 seconds per step)
+        time.sleep(random.uniform(2, 5))
+
+        # Accumulate assessments
+        all_assessments.extend(step["assessments"])
+
+    # Compute summary from accumulated assessments
+    ratings = [a["rating"] for a in all_assessments]
+    summary = {
+        "total_items": len(all_assessments),
+        "yes": ratings.count("Yes"),
+        "no": ratings.count("No"),
+        "partial": ratings.count("Partial"),
+        "na": ratings.count("NA"),
+    }
+
     job = job_store[job_id]
     job["status"] = "complete"
-    job["results"] = MOCK_RESULTS
+    job["progress"] = "Complete"
+    job["results"] = {"assessments": all_assessments, "summary": summary}
     job["completed_at"] = time.time()
     job_store[job_id] = job

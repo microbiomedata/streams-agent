@@ -237,6 +237,7 @@
         const resp = await fetch("/api/status/" + jobId);
         if (!resp.ok) continue;
         const data = await resp.json();
+        job.progress = data.progress || "";
         if (data.status === "complete") {
           job.status = "complete";
           job.results = data.results;
@@ -260,7 +261,9 @@
       for (const [jobId, job] of entries) {
         const t = new Date(job.submitted_at * 1000).toLocaleTimeString();
         const statusCls = job.status === "complete" ? "status-complete" : "status-running";
-        const statusText = job.status === "running" ? "running..." : job.status;
+        const statusText = job.status === "running"
+          ? (job.progress || "running...")
+          : job.status;
         const viewBtn = job.status === "complete"
           ? `<button class="btn-sm" onclick="showDetail('${jobId}')">View</button>`
           : "";
