@@ -14,15 +14,17 @@ Use the Write tool to write the complete YAML file with all items rated. For exa
 - id: '1'
   title: Study design
   rating: 'Yes'
-  comments: Cross-sectional amplicon study described in abstract paragraph 1
+  comments: 'Cross-sectional amplicon study described in abstract paragraph 1'
 - id: '1.1'
   title: Environment or host
   rating: 'Yes'
-  comments: Soil environment specified in Section 2.1
+  comments: 'Soil environment specified in Section 2.1'
 - id: '1.2'
   title: Sample type
   rating: 'Partial'
-  comments: Sample type mentioned but collection method unclear (p.3)
+  comments: 'Sample type mentioned but collection method unclear (p.3)'
 ```
+
+**Important:** Always single-quote `rating` and `comments` values to avoid YAML syntax errors from colons or special characters.
 
 Every item must have a valid rating (`Yes`, `No`, `NA`, or `Partial`). A validation hook will automatically check your output and give you feedback if anything needs fixing.

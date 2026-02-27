@@ -313,7 +313,22 @@ def validate_checklist_yaml(
         []
     """
     with open(yaml_path) as f:
-        items = yaml.safe_load(f)
+        raw = f.read()
+
+    try:
+        items = yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        # Extract line info from the YAML error if available
+        msg = f"YAML syntax error: {exc}"
+        if hasattr(exc, "problem_mark") and exc.problem_mark is not None:
+            mark = exc.problem_mark
+            msg = (
+                f"YAML syntax error at line {mark.line + 1}, column {mark.column + 1}: "
+                f"{exc.problem}. "
+                "Hint: quote string values that contain colons, e.g. "
+                "comments: 'Found on p.2: some detail'"
+            )
+        return [msg]
 
     errors: list[str] = []
 

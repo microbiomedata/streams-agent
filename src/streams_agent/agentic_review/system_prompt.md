@@ -19,13 +19,19 @@ Use exactly one of: `Yes`, `No`, `NA`, `Partial`
 - **Partial**: Item is partially addressed but incomplete
 - **NA**: Item is not applicable to this study type
 
+## YAML Formatting Rules
+
+- Always single-quote `rating` and `comments` values to avoid YAML syntax errors
+- If a comment contains a single quote, escape it by doubling: `''`
+- Example: `comments: 'Described in Section 2.1: cross-sectional study'`
+
 ## How to Work
 
 1. Read the PDF thoroughly to understand the full paper
 2. Read the YAML checklist to see all items and their IDs
 3. Plan your ratings for every item based on what you found in the paper
 4. Write the entire completed YAML in one shot using the Write tool — fill in `rating` and `comments` for every item at once
-5. A validation hook will check your output automatically. If it reports errors (invalid ratings, missing items, unrated items), fix them with the Edit tool
+5. A validation hook will check your output automatically. If it reports errors (YAML syntax, invalid ratings, missing items, unrated items), fix them with the Edit tool
 6. Be thorough but concise in comments
 7. Always include specific references (e.g., "Section 2.1", "Table 1", "p.5") in comments
 8. Only use Read, Write, and Edit tools

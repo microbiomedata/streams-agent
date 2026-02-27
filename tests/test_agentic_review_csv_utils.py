@@ -255,3 +255,24 @@ def test_validate_checklist_yaml_missing_items(tmp_path: Path) -> None:
 
     errors = validate_checklist_yaml(yaml_path, expected_ids=["1.1", "1.2", "1.3"])
     assert any("missing" in e.lower() for e in errors)
+
+
+def test_validate_checklist_yaml_syntax_error(tmp_path: Path) -> None:
+    """Malformed YAML (e.g. unquoted colons) returns a helpful syntax error."""
+    yaml_path = tmp_path / "checklist.yaml"
+    # Write YAML with an unquoted colon in comments — triggers YAML parse error
+    yaml_path.write_text(
+        "- id: '1.1'\n"
+        "  title: Study design\n"
+        "  rating: Yes\n"
+        "  comments: Found on p.2: cross-sectional study\n"
+        "- id: '1.2'\n"
+        "  title: Something\n"
+        "  rating: No\n"
+        "  comments: Missing: not reported anywhere\n"
+    )
+
+    errors = validate_checklist_yaml(yaml_path, expected_ids=["1.1", "1.2"])
+    assert len(errors) == 1
+    assert "syntax error" in errors[0].lower()
+    assert "quote" in errors[0].lower()
