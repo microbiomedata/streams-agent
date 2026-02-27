@@ -24,7 +24,7 @@ from claude_agent_sdk import (
 
 from streams_agent.models.checklist import ChecklistAssessment
 
-from .csv_utils import parse_completed_csv, prepare_workspace
+from .csv_utils import parse_completed_yaml, prepare_yaml_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -147,13 +147,13 @@ async def _run_review_async(
         work_dir = Path(tempfile.mkdtemp(prefix="agentic_review_"))
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    csv_path = prepare_workspace(template_path, work_dir)
+    checklist_path = prepare_yaml_workspace(template_path, work_dir)
 
     system_prompt = _load_prompt("system_prompt.md")
     user_prompt = _load_prompt(
         "user_prompt.md",
         pdf_path=str(pdf_path),
-        csv_path=str(csv_path),
+        checklist_path=str(checklist_path),
     )
 
     options = ClaudeAgentOptions(
@@ -180,7 +180,7 @@ async def _run_review_async(
             elapsed = time.monotonic() - t0
             print(f"  {elapsed:7.1f}s [trace] saved to {trace_path}", file=sys.stderr)
 
-    return parse_completed_csv(csv_path, paper_id=paper_id, evaluator_id=evaluator_id)
+    return parse_completed_yaml(checklist_path, paper_id=paper_id, evaluator_id=evaluator_id)
 
 
 def run_review(

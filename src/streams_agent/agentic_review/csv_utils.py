@@ -1,27 +1,21 @@
-"""CSV utilities for preparing and parsing STREAMS checklist workspaces.
+"""Workspace utilities for preparing and parsing STREAMS checklist files.
 
 This module provides functions to:
-- Prepare a blank checklist CSV workspace from the STREAMS template
-- Parse a completed CSV back into a ChecklistAssessment
+- Prepare a blank checklist workspace (YAML or CSV) from the STREAMS template
+- Parse a completed checklist back into a ChecklistAssessment
 
-The STREAMS CSV layout:
-    Row 0: Human-readable column headers
-    Row 1: Field mapping names (e.g. ItemAssessment.item_id)
-    Row 2+: Data rows (section headers and checklist items)
+The YAML format is preferred for agent use — it produces short lines that are
+easy for the Edit tool to match, and strips out bulky example/guidance columns
+that the agent doesn't need in the working file.
 
-Column indices:
-    0: item_id / Number
-    1: title / Item
-    2: description / Recommendation
-    3: source / Source
-    4: additional_guidance / Additional Guidance
-    5: examples / Example(s)
-    6: rating / Present in the manuscript?
-    7: comments / Comments or location in manuscript
+The CSV functions are retained for backward compatibility and for producing
+final output in the original template format.
 """
 
 import csv
 from pathlib import Path
+
+import yaml
 
 from streams_agent.models.checklist import (
     AssessmentRating,
@@ -187,6 +181,121 @@ def parse_completed_csv(
                 item_id=item_id,
                 rating=_parse_rating(rating_text),
                 comments=comments_text,
+            )
+        )
+
+    return ChecklistAssessment(
+        checklist_name="STREAMS",
+        checklist_version="1.0",
+        paper_id=paper_id,
+        evaluator_id=evaluator_id,
+        assessments=assessments,
+    )
+
+
+# ---------------------------------------------------------------------------
+# YAML workspace (preferred for agent use)
+# ---------------------------------------------------------------------------
+
+
+def prepare_yaml_workspace(template_path: Path, work_dir: Path) -> Path:
+    """Prepare a lean YAML checklist from the STREAMS CSV template.
+
+    Extracts only the item id and title from the template — enough context
+    for the agent to know what each item is, without the bulky examples and
+    guidance columns that bloat the working file.
+
+    Args:
+        template_path: Path to the STREAMS CSV template file.
+        work_dir: Directory where the prepared YAML will be written.
+
+    Returns:
+        Path to the newly created ``checklist.yaml``.
+
+    Examples:
+        >>> from pathlib import Path
+        >>> import tempfile, yaml
+        >>> template = Path("src/streams_agent/template/streams.csv")
+        >>> with tempfile.TemporaryDirectory() as td:
+        ...     out = prepare_yaml_workspace(template, Path(td))
+        ...     out.name
+        'checklist.yaml'
+        >>> with open(out) as f:
+        ...     items = yaml.safe_load(f)
+        >>> items[0]["id"]
+        '1'
+        >>> items[0]["rating"] is None
+        True
+    """
+    with open(template_path, newline="") as f:
+        reader = csv.reader(f)
+        rows = list(reader)
+
+    items: list[dict] = []
+    for row in rows[_HEADER_ROWS:]:
+        item_id = row[0].strip() if row else ""
+        if not item_id or not item_id[0].isdigit():
+            continue
+        title = row[1].strip() if len(row) > 1 else ""
+        items.append({
+            "id": item_id,
+            "title": title,
+            "rating": None,
+            "comments": None,
+        })
+
+    output_path = work_dir / "checklist.yaml"
+    with open(output_path, "w") as f:
+        yaml.dump(items, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+    return output_path
+
+
+def parse_completed_yaml(
+    yaml_path: Path,
+    paper_id: str,
+    evaluator_id: str,
+) -> ChecklistAssessment:
+    """Parse a completed YAML checklist into a ChecklistAssessment.
+
+    Args:
+        yaml_path: Path to the filled-in YAML file.
+        paper_id: Identifier for the paper being assessed.
+        evaluator_id: Identifier for the evaluator.
+
+    Returns:
+        A ChecklistAssessment containing all parsed item assessments.
+
+    Examples:
+        >>> import tempfile, yaml
+        >>> from pathlib import Path
+        >>> items = [
+        ...     {"id": "1.1", "title": "Design", "rating": "Yes", "comments": "Found it"},
+        ...     {"id": "1.2", "title": "Env info", "rating": "No", "comments": "Missing"},
+        ... ]
+        >>> with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        ...     yaml.dump(items, f)
+        ...     p = Path(f.name)
+        >>> result = parse_completed_yaml(p, "paper1", "agent1")
+        >>> result.assessments[0].rating.value
+        'Yes'
+    """
+    with open(yaml_path) as f:
+        items = yaml.safe_load(f) or []
+
+    assessments: list[ItemAssessment] = []
+    for item in items:
+        item_id = str(item.get("id", "")).strip()
+        if not item_id:
+            continue
+        rating_text = str(item.get("rating") or "")
+        comments_text = str(item.get("comments") or "")
+
+        assessments.append(
+            ItemAssessment(
+                item_id=item_id,
+                rating=_parse_rating(rating_text),
+                comments=comments_text or None,
             )
         )
 

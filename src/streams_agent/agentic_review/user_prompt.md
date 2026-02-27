@@ -1,9 +1,23 @@
 Review the research paper at `{pdf_path}` against the STREAMS checklist.
 
-The checklist CSV is at `{csv_path}`. Read both files, then edit the CSV to fill in the rating and comments columns for each checklist item.
+The checklist is at `{checklist_path}`. It is a YAML file with one entry per checklist item. Each entry has `id`, `title`, `rating`, and `comments` fields. Fill in `rating` and `comments` for every item.
 
-The CSV has 8 columns. For each data row (starting at row 3), fill in:
-- Column 7: Rating (Yes, No, NA, or Partial)
-- Column 8: Comments with specific references to the paper
+For example, to rate item 1.1, change:
 
-Work through all items systematically. When you are done, every item with a numeric ID should have a rating.
+```yaml
+- id: '1.1'
+  title: Study design
+  rating: null
+  comments: null
+```
+
+to:
+
+```yaml
+- id: '1.1'
+  title: Study design
+  rating: 'Yes'
+  comments: Described in abstract paragraph 1 as a cross-sectional amplicon study
+```
+
+Work through all items. When done, every item should have a rating.
