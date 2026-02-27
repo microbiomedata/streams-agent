@@ -313,18 +313,26 @@ def agentic_review(
     paper_id: Annotated[str, typer.Option(help="Identifier for the paper being reviewed")] = "paper",
     evaluator_id: Annotated[str, typer.Option(help="Identifier for the evaluator")] = "agentic_review",
     output: Annotated[Optional[Path], typer.Option(help="Output file path (JSON format)")] = None,
-    work_dir: Annotated[Optional[Path], typer.Option(help="Working directory for intermediate CSV")] = None,
+    work_dir: Annotated[Optional[Path], typer.Option(help="Working directory for intermediate files")] = None,
+    model: Annotated[Optional[str], typer.Option(help="Model: 'opus', 'sonnet', 'haiku', or full model ID")] = None,
     verbose: Annotated[int, typer.Option("-v", "--verbose", count=True, help="Increase verbosity (-v, -vv, -vvv)")] = 0,
     trace: Annotated[Optional[Path], typer.Option(help="Save full message trace as JSON to this path")] = None,
 ):
     """Review a PDF using the agentic review engine (Claude Agent SDK).
 
     The agent reads the PDF, works through the STREAMS checklist iteratively,
-    and fills in ratings and comments by editing a CSV file.
+    and fills in ratings and comments by editing a YAML file.
+
+    Use --model to pick a model: 'sonnet' (default), 'opus' for heavyweight,
+    'haiku' for lightweight, or a full model ID like 'claude-sonnet-4-5-20250514'.
 
     Requires ANTHROPIC_API_KEY environment variable to be set.
     """
     from .agentic_review import run_review
+
+    if model:
+        from .agentic_review.engine import _resolve_model
+        typer.echo(f"Model: {_resolve_model(model)}")
 
     typer.echo(f"Reviewing {pdf_path} using agentic review engine...")
     assessment = run_review(
@@ -333,6 +341,7 @@ def agentic_review(
         paper_id=paper_id,
         evaluator_id=evaluator_id,
         work_dir=work_dir,
+        model=model,
         verbosity=verbose,
         trace_path=trace,
     )

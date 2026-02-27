@@ -28,6 +28,36 @@ from .csv_utils import parse_completed_yaml, prepare_yaml_workspace
 
 logger = logging.getLogger(__name__)
 
+#: Short name → full model ID mapping for convenience.
+MODEL_ALIASES: dict[str, str] = {
+    "opus": "claude-opus-4-5-20250514",
+    "sonnet": "claude-sonnet-4-5-20250514",
+    "haiku": "claude-haiku-4-5-20251001",
+}
+
+
+def _resolve_model(model: str | None) -> str | None:
+    """Resolve a model short name or full ID.
+
+    Args:
+        model: Short name (``"opus"``, ``"sonnet"``, ``"haiku"``),
+               full model ID, or ``None`` for the SDK default.
+
+    Returns:
+        Full model ID string, or ``None``.
+
+    Examples:
+        >>> _resolve_model("sonnet")
+        'claude-sonnet-4-5-20250514'
+        >>> _resolve_model("claude-opus-4-5-20250514")
+        'claude-opus-4-5-20250514'
+        >>> _resolve_model(None) is None
+        True
+    """
+    if model is None:
+        return None
+    return MODEL_ALIASES.get(model, model)
+
 
 def _load_prompt(filename: str, **kwargs: str) -> str:
     """Load a markdown prompt file from the package directory.
@@ -118,6 +148,7 @@ async def _run_review_async(
     paper_id: str,
     evaluator_id: str = "agentic_review",
     work_dir: Path | None = None,
+    model: str | None = None,
     verbosity: int = 0,
     trace_path: Path | None = None,
 ) -> ChecklistAssessment:
@@ -129,11 +160,13 @@ async def _run_review_async(
         paper_id: Identifier for the paper.
         evaluator_id: Identifier for the evaluator.
         work_dir: Working directory for the CSV. If None, uses a temp directory.
+        model: Model to use — short name (``"opus"``, ``"sonnet"``, ``"haiku"``),
+               full model ID, or ``None`` for the SDK default.
         verbosity: Verbosity level (0=quiet, 1=tool calls, 2=+text, 3=+everything).
         trace_path: If set, save the full message trace as JSON to this path.
 
     Returns:
-        ChecklistAssessment populated from the agent's CSV edits.
+        ChecklistAssessment populated from the agent's YAML edits.
     """
     pdf_path = Path(pdf_path).resolve()
     template_path = Path(template_path).resolve()
@@ -156,8 +189,11 @@ async def _run_review_async(
         checklist_path=str(checklist_path),
     )
 
+    resolved_model = _resolve_model(model)
+
     options = ClaudeAgentOptions(
         system_prompt=system_prompt,
+        model=resolved_model,
         allowed_tools=["Read", "Edit"],
         permission_mode="bypassPermissions",
     )
@@ -189,13 +225,14 @@ def run_review(
     paper_id: str,
     evaluator_id: str = "agentic_review",
     work_dir: Path | None = None,
+    model: str | None = None,
     verbosity: int = 0,
     trace_path: Path | None = None,
 ) -> ChecklistAssessment:
     """Run an agentic review of a PDF against a STREAMS checklist.
 
     This is the synchronous entry point. It spawns a Claude Code agent that
-    reads the PDF and fills in a CSV checklist using the Edit tool.
+    reads the PDF and fills in a YAML checklist using the Edit tool.
 
     Args:
         pdf_path: Path to the PDF file to review.
@@ -203,11 +240,13 @@ def run_review(
         paper_id: Identifier for the paper.
         evaluator_id: Identifier for the evaluator.
         work_dir: Working directory for the CSV. If None, uses a temp directory.
+        model: Model to use — short name (``"opus"``, ``"sonnet"``, ``"haiku"``),
+               full model ID, or ``None`` for the SDK default.
         verbosity: Verbosity level (0=quiet, 1=tool calls, 2=+text, 3=+everything).
         trace_path: If set, save the full message trace as JSON to this path.
 
     Returns:
-        ChecklistAssessment populated from the agent's CSV edits.
+        ChecklistAssessment populated from the agent's YAML edits.
     """
     return asyncio.run(
         _run_review_async(
@@ -216,6 +255,7 @@ def run_review(
             paper_id=paper_id,
             evaluator_id=evaluator_id,
             work_dir=work_dir,
+            model=model,
             verbosity=verbosity,
             trace_path=trace_path,
         )
