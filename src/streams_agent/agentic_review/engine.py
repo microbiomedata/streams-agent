@@ -6,6 +6,7 @@ import logging
 import sys
 import tempfile
 import time
+from datetime import datetime, timezone
 from dataclasses import asdict
 from importlib import resources
 from pathlib import Path
@@ -255,19 +256,38 @@ async def _run_review_async(
     )
 
     trace: list[dict] = []
+    result_metadata: dict = {}
     t0 = time.monotonic()
+    timestamp = datetime.now(timezone.utc).isoformat()
 
     async for message in query(prompt=user_prompt, options=options):
         if verbosity > 0:
             _print_debug(message, verbosity, t0)
         if trace_path is not None:
             trace.append(_serialize_message(message))
+        if isinstance(message, ResultMessage):
+            result_metadata = {
+                "total_cost_usd": message.total_cost_usd,
+                "duration_ms": message.duration_ms,
+                "num_turns": message.num_turns,
+                "session_id": message.session_id,
+            }
 
     if trace_path is not None:
         trace_path = Path(trace_path)
         trace_path.parent.mkdir(parents=True, exist_ok=True)
+        trace_data = {
+            "metadata": {
+                "model": resolved_model,
+                "paper_id": paper_id,
+                "pdf_path": str(pdf_path),
+                "timestamp": timestamp,
+                **result_metadata,
+            },
+            "messages": trace,
+        }
         with open(trace_path, "w") as f:
-            json.dump(trace, f, indent=2, default=str)
+            json.dump(trace_data, f, indent=2, default=str)
         if verbosity > 0:
             elapsed = time.monotonic() - t0
             print(f"  {elapsed:7.1f}s [trace] saved to {trace_path}", file=sys.stderr)
@@ -288,7 +308,8 @@ def run_review(
     """Run an agentic review of a PDF against a STREAMS checklist.
 
     This is the synchronous entry point. It spawns a Claude Code agent that
-    reads the PDF and fills in a YAML checklist using the Edit tool.
+    reads the PDF and writes a completed YAML checklist in one shot, with a
+    PostToolUse validation hook to catch errors.
 
     Args:
         pdf_path: Path to the PDF file to review.
