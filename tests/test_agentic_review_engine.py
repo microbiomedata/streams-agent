@@ -21,6 +21,17 @@ def test_load_user_prompt_with_substitution():
     assert "/tmp/checklist.csv" in prompt
 
 
+def test_agentic_review_cli_help():
+    """The agentic-review command exists and shows help."""
+    from typer.testing import CliRunner
+    from streams_agent.cli import app
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["agentic-review", "--help"])
+    assert result.exit_code == 0
+    assert "agentic" in result.output.lower()
+
+
 @pytest.mark.integration
 def test_run_review(tmp_path):
     """Integration test: run a full agentic review against a real PDF."""

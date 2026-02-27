@@ -306,6 +306,54 @@ def ui(
         raise typer.Exit(1)
 
 
+@app.command("agentic-review")
+def agentic_review(
+    pdf_path: Annotated[Path, typer.Argument(help="Path to the PDF file to review")],
+    template_path: Annotated[Path, typer.Argument(help="Path to the STREAMS checklist template CSV")] = Path("src/streams_agent/template/streams.csv"),
+    paper_id: Annotated[str, typer.Option(help="Identifier for the paper being reviewed")] = "paper",
+    evaluator_id: Annotated[str, typer.Option(help="Identifier for the evaluator")] = "agentic_review",
+    output: Annotated[Optional[Path], typer.Option(help="Output file path (JSON format)")] = None,
+    work_dir: Annotated[Optional[Path], typer.Option(help="Working directory for intermediate CSV")] = None,
+):
+    """Review a PDF using the agentic review engine (Claude Agent SDK).
+
+    The agent reads the PDF, works through the STREAMS checklist iteratively,
+    and fills in ratings and comments by editing a CSV file.
+
+    Requires ANTHROPIC_API_KEY environment variable to be set.
+    """
+    from .agentic_review import run_review
+
+    typer.echo(f"Reviewing {pdf_path} using agentic review engine...")
+    assessment = run_review(
+        pdf_path=pdf_path,
+        template_path=template_path,
+        paper_id=paper_id,
+        evaluator_id=evaluator_id,
+        work_dir=work_dir,
+    )
+
+    if output:
+        with open(output, "w") as f:
+            json.dump(assessment.model_dump(mode="json"), f, indent=2, default=str)
+        typer.echo(f"Review saved to {output}")
+    else:
+        total_items = len(assessment.assessments)
+        rated = len([a for a in assessment.assessments if a.rating is not None])
+        typer.echo(f"\nReview Complete!")
+        typer.echo(f"Paper ID: {assessment.paper_id}")
+        typer.echo(f"Items reviewed: {rated}/{total_items}")
+        typer.echo(f"Completion rate: {assessment.get_completion_rate():.1%}")
+
+        ratings_count: dict[str, int] = {}
+        for a in assessment.assessments:
+            if a.rating:
+                ratings_count[a.rating.value] = ratings_count.get(a.rating.value, 0) + 1
+        typer.echo("\nRatings Summary:")
+        for rating, count in ratings_count.items():
+            typer.echo(f"  {rating}: {count}")
+
+
 def main():
     """Main entry point for the CLI."""
     app()
