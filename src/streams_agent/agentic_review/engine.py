@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 import tempfile
+import time
 from dataclasses import asdict
 from importlib import resources
 from pathlib import Path
@@ -45,7 +46,7 @@ def _load_prompt(filename: str, **kwargs: str) -> str:
     return text
 
 
-def _print_debug(message: object, verbosity: int = 1) -> None:
+def _print_debug(message: object, verbosity: int = 1, t0: float = 0.0) -> None:
     """Print a debug trace line for a single SDK message to stderr.
 
     Verbosity levels:
@@ -56,37 +57,44 @@ def _print_debug(message: object, verbosity: int = 1) -> None:
     Args:
         message: A message yielded by the SDK query() iterator.
         verbosity: How much detail to show (1-3).
+        t0: Start time (from time.monotonic()) for elapsed timestamps.
     """
+    elapsed = time.monotonic() - t0
+    ts = f"{elapsed:7.1f}s"
+
+    def _emit(tag: str, text: str) -> None:
+        print(f"  {ts} [{tag}] {text}", file=sys.stderr)
+
     if isinstance(message, AssistantMessage):
         for block in message.content:
             if isinstance(block, TextBlock):
                 if verbosity >= 3:
-                    print(f"  [assistant] {block.text}", file=sys.stderr)
+                    _emit("assistant", block.text)
                 elif verbosity >= 2:
                     text = block.text[:200] + "..." if len(block.text) > 200 else block.text
-                    print(f"  [assistant] {text}", file=sys.stderr)
+                    _emit("assistant", text)
             elif isinstance(block, ToolUseBlock):
                 if verbosity >= 2:
-                    print(f"  [tool_call] {block.name}({json.dumps(block.input, default=str)[:200]})", file=sys.stderr)
+                    _emit("tool_call", f"{block.name}({json.dumps(block.input, default=str)[:200]})")
                 else:
-                    print(f"  [tool_call] {block.name}", file=sys.stderr)
+                    _emit("tool_call", block.name)
             elif isinstance(block, ToolResultBlock):
                 if verbosity >= 2:
                     content = str(block.content)[:200] if block.content else ""
                     error = " ERROR" if block.is_error else ""
-                    print(f"  [tool_result{error}] {content}", file=sys.stderr)
+                    _emit(f"tool_result{error}", content)
     elif isinstance(message, ResultMessage):
-        print(
-            f"  [result] turns={message.num_turns} "
+        _emit(
+            "result",
+            f"turns={message.num_turns} "
             f"cost=${message.total_cost_usd or 0:.4f} "
             f"duration={message.duration_ms}ms",
-            file=sys.stderr,
         )
     elif isinstance(message, SystemMessage) and verbosity >= 3:
-        print(f"  [system] {message.subtype}", file=sys.stderr)
+        _emit("system", message.subtype)
     elif isinstance(message, UserMessage) and verbosity >= 3:
         content = str(message.content)[:200] if message.content else ""
-        print(f"  [user] {content}", file=sys.stderr)
+        _emit("user", content)
 
 
 def _serialize_message(message: object) -> dict:
@@ -155,10 +163,11 @@ async def _run_review_async(
     )
 
     trace: list[dict] = []
+    t0 = time.monotonic()
 
     async for message in query(prompt=user_prompt, options=options):
         if verbosity > 0:
-            _print_debug(message, verbosity)
+            _print_debug(message, verbosity, t0)
         if trace_path is not None:
             trace.append(_serialize_message(message))
 
@@ -168,7 +177,8 @@ async def _run_review_async(
         with open(trace_path, "w") as f:
             json.dump(trace, f, indent=2, default=str)
         if verbosity > 0:
-            print(f"  [trace] saved to {trace_path}", file=sys.stderr)
+            elapsed = time.monotonic() - t0
+            print(f"  {elapsed:7.1f}s [trace] saved to {trace_path}", file=sys.stderr)
 
     return parse_completed_csv(csv_path, paper_id=paper_id, evaluator_id=evaluator_id)
 
