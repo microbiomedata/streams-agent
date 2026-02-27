@@ -13,6 +13,7 @@ from pathlib import Path
 from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
+    HookMatcher,
     ResultMessage,
     SystemMessage,
     TextBlock,
@@ -24,7 +25,12 @@ from claude_agent_sdk import (
 
 from streams_agent.models.checklist import ChecklistAssessment
 
-from .csv_utils import parse_completed_yaml, prepare_yaml_workspace
+from .csv_utils import (
+    get_expected_ids,
+    parse_completed_yaml,
+    prepare_yaml_workspace,
+    validate_checklist_yaml,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +148,45 @@ def _serialize_message(message: object) -> dict:
     return result
 
 
+def _make_validation_hook(
+    checklist_path: Path,
+    expected_ids: list[str],
+):
+    """Create a PostToolUse hook that validates the checklist YAML.
+
+    The hook fires after every Write or Edit call. If the target file is the
+    checklist, it runs ``validate_checklist_yaml`` and blocks with specific
+    feedback when validation fails, giving the agent a chance to fix errors.
+
+    Args:
+        checklist_path: Resolved path to the checklist YAML file.
+        expected_ids: List of item IDs that must be present.
+
+    Returns:
+        An async hook callback suitable for ``HookMatcher.hooks``.
+    """
+
+    async def _hook(hook_input, tool_use_id, context):
+        tool_input = hook_input.get("tool_input", {})
+        file_path = tool_input.get("file_path", "")
+
+        if not file_path.endswith(checklist_path.name):
+            return {"continue_": True}
+
+        errors = validate_checklist_yaml(checklist_path, expected_ids=expected_ids)
+        if errors:
+            return {
+                "decision": "block",
+                "reason": (
+                    "Checklist validation failed:\n"
+                    + "\n".join(f"- {e}" for e in errors)
+                ),
+            }
+        return {"continue_": True}
+
+    return _hook
+
+
 async def _run_review_async(
     pdf_path: Path,
     template_path: Path,
@@ -181,6 +226,7 @@ async def _run_review_async(
     work_dir.mkdir(parents=True, exist_ok=True)
 
     checklist_path = prepare_yaml_workspace(template_path, work_dir)
+    expected_ids = get_expected_ids(checklist_path)
 
     system_prompt = _load_prompt("system_prompt.md")
     user_prompt = _load_prompt(
@@ -191,11 +237,21 @@ async def _run_review_async(
 
     resolved_model = _resolve_model(model)
 
+    validation_hook = _make_validation_hook(checklist_path, expected_ids)
+
     options = ClaudeAgentOptions(
         system_prompt=system_prompt,
         model=resolved_model,
-        allowed_tools=["Read", "Edit"],
+        allowed_tools=["Read", "Write", "Edit"],
         permission_mode="bypassPermissions",
+        hooks={
+            "PostToolUse": [
+                HookMatcher(
+                    matcher="Write|Edit",
+                    hooks=[validation_hook],
+                ),
+            ],
+        },
     )
 
     trace: list[dict] = []
