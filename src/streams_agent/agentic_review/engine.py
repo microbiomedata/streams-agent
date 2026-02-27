@@ -45,24 +45,36 @@ def _load_prompt(filename: str, **kwargs: str) -> str:
     return text
 
 
-def _print_debug(message: object) -> None:
+def _print_debug(message: object, verbosity: int = 1) -> None:
     """Print a debug trace line for a single SDK message to stderr.
+
+    Verbosity levels:
+        1 (-v):   tool calls + result summary
+        2 (-vv):  + assistant text (truncated) + tool results (truncated)
+        3 (-vvv): + full untruncated text, system messages, user messages
 
     Args:
         message: A message yielded by the SDK query() iterator.
+        verbosity: How much detail to show (1-3).
     """
     if isinstance(message, AssistantMessage):
         for block in message.content:
             if isinstance(block, TextBlock):
-                # Truncate long text for readability
-                text = block.text[:200] + "..." if len(block.text) > 200 else block.text
-                print(f"  [assistant] {text}", file=sys.stderr)
+                if verbosity >= 3:
+                    print(f"  [assistant] {block.text}", file=sys.stderr)
+                elif verbosity >= 2:
+                    text = block.text[:200] + "..." if len(block.text) > 200 else block.text
+                    print(f"  [assistant] {text}", file=sys.stderr)
             elif isinstance(block, ToolUseBlock):
-                print(f"  [tool_call] {block.name}({json.dumps(block.input, default=str)[:120]})", file=sys.stderr)
+                if verbosity >= 2:
+                    print(f"  [tool_call] {block.name}({json.dumps(block.input, default=str)[:200]})", file=sys.stderr)
+                else:
+                    print(f"  [tool_call] {block.name}", file=sys.stderr)
             elif isinstance(block, ToolResultBlock):
-                content = str(block.content)[:120] if block.content else ""
-                error = " ERROR" if block.is_error else ""
-                print(f"  [tool_result{error}] {content}", file=sys.stderr)
+                if verbosity >= 2:
+                    content = str(block.content)[:200] if block.content else ""
+                    error = " ERROR" if block.is_error else ""
+                    print(f"  [tool_result{error}] {content}", file=sys.stderr)
     elif isinstance(message, ResultMessage):
         print(
             f"  [result] turns={message.num_turns} "
@@ -70,10 +82,10 @@ def _print_debug(message: object) -> None:
             f"duration={message.duration_ms}ms",
             file=sys.stderr,
         )
-    elif isinstance(message, SystemMessage):
+    elif isinstance(message, SystemMessage) and verbosity >= 3:
         print(f"  [system] {message.subtype}", file=sys.stderr)
-    elif isinstance(message, UserMessage):
-        content = str(message.content)[:120] if message.content else ""
+    elif isinstance(message, UserMessage) and verbosity >= 3:
+        content = str(message.content)[:200] if message.content else ""
         print(f"  [user] {content}", file=sys.stderr)
 
 
@@ -98,7 +110,7 @@ async def _run_review_async(
     paper_id: str,
     evaluator_id: str = "agentic_review",
     work_dir: Path | None = None,
-    verbose: bool = False,
+    verbosity: int = 0,
     trace_path: Path | None = None,
 ) -> ChecklistAssessment:
     """Run an agentic review (async implementation).
@@ -109,7 +121,7 @@ async def _run_review_async(
         paper_id: Identifier for the paper.
         evaluator_id: Identifier for the evaluator.
         work_dir: Working directory for the CSV. If None, uses a temp directory.
-        verbose: If True, print agent trace to stderr as it runs.
+        verbosity: Verbosity level (0=quiet, 1=tool calls, 2=+text, 3=+everything).
         trace_path: If set, save the full message trace as JSON to this path.
 
     Returns:
@@ -145,8 +157,8 @@ async def _run_review_async(
     trace: list[dict] = []
 
     async for message in query(prompt=user_prompt, options=options):
-        if verbose:
-            _print_debug(message)
+        if verbosity > 0:
+            _print_debug(message, verbosity)
         if trace_path is not None:
             trace.append(_serialize_message(message))
 
@@ -155,7 +167,7 @@ async def _run_review_async(
         trace_path.parent.mkdir(parents=True, exist_ok=True)
         with open(trace_path, "w") as f:
             json.dump(trace, f, indent=2, default=str)
-        if verbose:
+        if verbosity > 0:
             print(f"  [trace] saved to {trace_path}", file=sys.stderr)
 
     return parse_completed_csv(csv_path, paper_id=paper_id, evaluator_id=evaluator_id)
@@ -167,7 +179,7 @@ def run_review(
     paper_id: str,
     evaluator_id: str = "agentic_review",
     work_dir: Path | None = None,
-    verbose: bool = False,
+    verbosity: int = 0,
     trace_path: Path | None = None,
 ) -> ChecklistAssessment:
     """Run an agentic review of a PDF against a STREAMS checklist.
@@ -181,7 +193,7 @@ def run_review(
         paper_id: Identifier for the paper.
         evaluator_id: Identifier for the evaluator.
         work_dir: Working directory for the CSV. If None, uses a temp directory.
-        verbose: If True, print agent trace to stderr as it runs.
+        verbosity: Verbosity level (0=quiet, 1=tool calls, 2=+text, 3=+everything).
         trace_path: If set, save the full message trace as JSON to this path.
 
     Returns:
@@ -194,7 +206,7 @@ def run_review(
             paper_id=paper_id,
             evaluator_id=evaluator_id,
             work_dir=work_dir,
-            verbose=verbose,
+            verbosity=verbosity,
             trace_path=trace_path,
         )
     )

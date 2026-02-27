@@ -314,7 +314,7 @@ def agentic_review(
     evaluator_id: Annotated[str, typer.Option(help="Identifier for the evaluator")] = "agentic_review",
     output: Annotated[Optional[Path], typer.Option(help="Output file path (JSON format)")] = None,
     work_dir: Annotated[Optional[Path], typer.Option(help="Working directory for intermediate CSV")] = None,
-    verbose: Annotated[bool, typer.Option("--verbose/--quiet", help="Print agent trace to stderr as it runs")] = False,
+    verbose: Annotated[int, typer.Option("-v", "--verbose", count=True, help="Increase verbosity (-v, -vv, -vvv)")] = 0,
     trace: Annotated[Optional[Path], typer.Option(help="Save full message trace as JSON to this path")] = None,
 ):
     """Review a PDF using the agentic review engine (Claude Agent SDK).
@@ -333,7 +333,7 @@ def agentic_review(
         paper_id=paper_id,
         evaluator_id=evaluator_id,
         work_dir=work_dir,
-        verbose=verbose,
+        verbosity=verbose,
         trace_path=trace,
     )
 
