@@ -13,6 +13,7 @@ from streams_agent.agentic_review.csv_utils import (
     parse_completed_yaml,
     prepare_workspace,
     prepare_yaml_workspace,
+    validate_checklist_yaml,
 )
 from streams_agent.models.checklist import AssessmentRating
 
@@ -196,3 +197,61 @@ def test_yaml_roundtrip(tmp_path: Path) -> None:
     assert len(result.assessments) > 0
     for a in result.assessments:
         assert a.rating is None
+
+
+# ---------------------------------------------------------------------------
+# validate_checklist_yaml tests
+# ---------------------------------------------------------------------------
+
+
+def test_validate_checklist_yaml_valid(tmp_path: Path) -> None:
+    """A fully-rated YAML passes validation."""
+    yaml_path = prepare_yaml_workspace(TEMPLATE_PATH, tmp_path)
+    with open(yaml_path) as f:
+        items = yaml.safe_load(f)
+    for item in items:
+        item["rating"] = "Yes"
+        item["comments"] = "Found"
+    with open(yaml_path, "w") as f:
+        yaml.dump(items, f, sort_keys=False)
+
+    errors = validate_checklist_yaml(yaml_path, expected_ids=[i["id"] for i in items])
+    assert errors == []
+
+
+def test_validate_checklist_yaml_missing_ratings(tmp_path: Path) -> None:
+    """Items with null ratings produce errors."""
+    yaml_path = tmp_path / "checklist.yaml"
+    items = [
+        {"id": "1.1", "title": "X", "rating": "Yes", "comments": "ok"},
+        {"id": "1.2", "title": "Y", "rating": None, "comments": None},
+        {"id": "1.3", "title": "Z", "rating": None, "comments": None},
+    ]
+    with open(yaml_path, "w") as f:
+        yaml.dump(items, f, sort_keys=False)
+
+    errors = validate_checklist_yaml(yaml_path, expected_ids=["1.1", "1.2", "1.3"])
+    assert len(errors) == 1  # one error about 2 unrated items
+    assert "1.2" in errors[0]
+
+
+def test_validate_checklist_yaml_invalid_rating(tmp_path: Path) -> None:
+    """Invalid rating values produce errors."""
+    yaml_path = tmp_path / "checklist.yaml"
+    items = [{"id": "1.1", "title": "X", "rating": "Maybe", "comments": "idk"}]
+    with open(yaml_path, "w") as f:
+        yaml.dump(items, f, sort_keys=False)
+
+    errors = validate_checklist_yaml(yaml_path, expected_ids=["1.1"])
+    assert any("1.1" in e and "Maybe" in e for e in errors)
+
+
+def test_validate_checklist_yaml_missing_items(tmp_path: Path) -> None:
+    """Missing item IDs produce errors."""
+    yaml_path = tmp_path / "checklist.yaml"
+    items = [{"id": "1.1", "title": "X", "rating": "Yes", "comments": "ok"}]
+    with open(yaml_path, "w") as f:
+        yaml.dump(items, f, sort_keys=False)
+
+    errors = validate_checklist_yaml(yaml_path, expected_ids=["1.1", "1.2", "1.3"])
+    assert any("missing" in e.lower() for e in errors)

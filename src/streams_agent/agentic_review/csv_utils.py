@@ -251,6 +251,120 @@ def prepare_yaml_workspace(template_path: Path, work_dir: Path) -> Path:
     return output_path
 
 
+VALID_RATINGS = {"yes", "y", "no", "n", "na", "n/a", "not applicable", "partial", "p"}
+
+
+def get_expected_ids(yaml_path: Path) -> list[str]:
+    """Return the list of item IDs from a prepared YAML checklist.
+
+    Args:
+        yaml_path: Path to the YAML checklist file.
+
+    Returns:
+        List of item ID strings.
+
+    Examples:
+        >>> import tempfile, yaml
+        >>> from pathlib import Path
+        >>> items = [{"id": "1.1", "title": "X"}, {"id": "1.2", "title": "Y"}]
+        >>> td = tempfile.mkdtemp()
+        >>> p = Path(td) / "cl.yaml"
+        >>> with open(p, "w") as f:
+        ...     yaml.dump(items, f)
+        >>> get_expected_ids(p)
+        ['1.1', '1.2']
+    """
+    with open(yaml_path) as f:
+        items = yaml.safe_load(f) or []
+    return [str(item["id"]) for item in items if "id" in item]
+
+
+def validate_checklist_yaml(
+    yaml_path: Path,
+    expected_ids: list[str] | None = None,
+) -> list[str]:
+    """Validate a completed YAML checklist and return a list of errors.
+
+    Checks:
+    - File is valid YAML containing a list of dicts
+    - Each item has id, rating, comments keys
+    - All non-null ratings are valid (Yes/No/NA/Partial etc.)
+    - All expected item IDs are present (if provided)
+    - Reports unrated items (rating is null)
+
+    Returns empty list if valid.
+
+    Args:
+        yaml_path: Path to the YAML checklist file.
+        expected_ids: If provided, check that all these IDs are present.
+
+    Returns:
+        List of error strings. Empty means valid.
+
+    Examples:
+        >>> import tempfile, yaml
+        >>> from pathlib import Path
+        >>> items = [{"id": "1.1", "title": "X", "rating": "Yes", "comments": "ok"}]
+        >>> td = tempfile.mkdtemp()
+        >>> p = Path(td) / "cl.yaml"
+        >>> with open(p, "w") as f:
+        ...     yaml.dump(items, f)
+        >>> validate_checklist_yaml(p, expected_ids=["1.1"])
+        []
+    """
+    with open(yaml_path) as f:
+        items = yaml.safe_load(f)
+
+    errors: list[str] = []
+
+    if not isinstance(items, list):
+        return ["YAML file must contain a list of items"]
+
+    for item in items:
+        if not isinstance(item, dict):
+            errors.append(f"Expected dict, got {type(item).__name__}")
+            continue
+
+    # Check for invalid ratings
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        rating = item.get("rating")
+        if rating is not None:
+            normalized = str(rating).strip().lower()
+            if normalized and normalized not in VALID_RATINGS:
+                errors.append(
+                    f"Item {item.get('id', '?')}: invalid rating '{rating}' "
+                    f"(must be Yes/No/NA/Partial)"
+                )
+
+    # Check for unrated items
+    unrated = [
+        str(item.get("id", "?"))
+        for item in items
+        if isinstance(item, dict) and item.get("rating") is None
+    ]
+    if unrated:
+        errors.append(
+            f"{len(unrated)} items still unrated: {', '.join(unrated)}"
+        )
+
+    # Check for missing expected IDs
+    if expected_ids is not None:
+        present_ids = {
+            str(item.get("id", ""))
+            for item in items
+            if isinstance(item, dict)
+        }
+        missing = [eid for eid in expected_ids if eid not in present_ids]
+        if missing:
+            errors.append(
+                f"{len(missing)} expected items missing: {', '.join(missing)}"
+            )
+
+    return errors
+
+
 def parse_completed_yaml(
     yaml_path: Path,
     paper_id: str,
