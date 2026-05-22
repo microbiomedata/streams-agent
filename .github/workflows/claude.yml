@@ -32,12 +32,12 @@ jobs:
       actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
             
       - name: Install python tools
         run: |
@@ -45,29 +45,13 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@51ea8ea73a139f2a74ff649e3092c25a904aed7e # v1.0.123
         
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          mcp_config: |
-            {
-              "mcpServers": {
-                "ols": {
-                  "command": "uvx",
-                  "args": [
-                    "ols-mcp"
-                  ]
-                },
-                "sequential-thinking": {
-                  "command": "npx",
-                  "args": [
-                    "-y",
-                    "@modelcontextprotocol/server-sequential-thinking"
-                  ]
-                }
-              }
-            }
-
+          claude_args: |
+            --mcp_config '{"mcpServers":{"ols":{"command":"uvx","args":["ols-mcp"]},"sequential-thinking":{"command":"npx","args":["-y","@modelcontextprotocol/server-sequential-thinking"]}}}'
+            --allowedTools "Bash(*),FileEdit,Edit,MultiEdit,WebSearch,WebFetch,mcp__ols_mcp__search_all_ontologies,mcp__ols_mcp__get_terms_from_ontology"
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
@@ -80,9 +64,6 @@ jobs:
           
           # Optional: Trigger when specific user is assigned to an issue
           # assignee_trigger: "claude-bot"
-          
-          # Optional: Allow Claude to run specific commands
-          allowed_tools: "Bash(*),FileEdit,Edit,MultiEdit,WebSearch,WebFetch,mcp__ols_mcp__search_all_ontologies,mcp__ols_mcp__get_terms_from_ontology"
           
           # Optional: Add custom instructions for Claude to customize its behavior for your project
           # custom_instructions: |
