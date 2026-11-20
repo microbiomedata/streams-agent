@@ -61,7 +61,7 @@ EOF
 uv run streams-agent multi-review papers.csv src/streams_agent/template/streams.csv
 ```
 
-See [EXAMPLE_USAGE.md](EXAMPLE_USAGE.md) for detailed usage instructions and [MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md) for model provider configuration.
+See [Example Usage](docs/example-usage.md) for detailed usage instructions and [Model Configuration](docs/model-configuration.md) for model provider configuration.
 
 ## Documentation Website
 
