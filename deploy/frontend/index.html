@@ -11,7 +11,8 @@
     h2 { font-size: 1.1rem; margin-top: 32px; margin-bottom: 12px; color: #374151; }
     .subtitle { color: #666; margin-bottom: 24px; font-size: 0.9rem; }
     label { display: block; font-weight: 600; margin-bottom: 4px; margin-top: 16px; }
-    input[type="text"], input[type="file"] { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
+    input[type="text"], input[type="file"], select { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
+    select { background: white; }
     button { padding: 10px 24px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; }
     button:hover { background: #1d4ed8; }
     button:disabled { background: #94a3b8; cursor: not-allowed; }
@@ -25,6 +26,12 @@
     .auth-bar a:hover { text-decoration: underline; }
     .anon-notice { color: #d97706; font-size: 0.85rem; }
 
+    /* Credits badge */
+    .credits-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+    .credits-green { background: #d1fae5; color: #065f46; }
+    .credits-yellow { background: #fef3c7; color: #92400e; }
+    .credits-red { background: #fee2e2; color: #991b1b; }
+
     /* Rate limit warning */
     .rate-warning { background: #fef3c7; border: 1px solid #f59e0b; padding: 10px 14px; border-radius: 6px; margin-top: 12px; font-size: 0.9rem; color: #92400e; display: none; }
     .rate-warning.visible { display: block; }
@@ -33,6 +40,9 @@
     .extracting { color: #6b7280; font-size: 0.85rem; margin-top: 4px; display: none; }
     .extracting.visible { display: block; }
 
+    /* Model cost hint */
+    .model-hint { color: #6b7280; font-size: 0.8rem; margin-top: 2px; }
+
     /* Jobs table */
     .jobs-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     .jobs-table th, .jobs-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 0.9rem; }
@@ -40,6 +50,7 @@
     .jobs-table tr:hover { background: #f9fafb; }
     .status-running { color: #d97706; font-weight: 600; }
     .status-complete { color: #059669; font-weight: 600; }
+    .status-failed { color: #dc2626; font-weight: 600; }
     .no-jobs { color: #9ca3af; font-style: italic; padding: 16px 0; }
 
     /* Page views */
@@ -50,6 +61,10 @@
     .back-link { display: inline-block; margin-bottom: 16px; color: #2563eb; text-decoration: none; font-size: 0.9rem; cursor: pointer; }
     .back-link:hover { text-decoration: underline; }
     .detail-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 16px; }
+    .detail-meta { font-size: 0.85rem; color: #6b7280; margin-bottom: 16px; }
+    .detail-meta span { margin-right: 16px; }
+    .trace-link { display: inline-block; margin-bottom: 16px; color: #2563eb; text-decoration: none; font-size: 0.9rem; }
+    .trace-link:hover { text-decoration: underline; }
 
     /* Results */
     .results-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
@@ -61,6 +76,18 @@
     .rating-na { color: #6b7280; }
     .summary { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
     .summary-item { padding: 6px 12px; border-radius: 6px; background: #f9fafb; font-size: 0.85rem; border: 1px solid #e5e7eb; }
+
+    /* Error log */
+    .error-log { background: #1e1e1e; color: #f0f0f0; padding: 16px; border-radius: 6px; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; margin-top: 12px; }
+
+    /* Testing section */
+    .testing-toggle { color: #6b7280; font-size: 0.8rem; cursor: pointer; margin-top: 12px; user-select: none; }
+    .testing-toggle:hover { color: #374151; }
+    .testing-section { display: none; margin-top: 8px; padding: 12px; background: #fefce8; border: 1px dashed #d97706; border-radius: 6px; }
+    .testing-section.visible { display: block; }
+    .testing-section label { font-size: 0.85rem; color: #92400e; margin-top: 0; }
+    .testing-section input[type="password"] { width: 100%; padding: 6px 10px; border: 1px solid #d97706; border-radius: 4px; font-size: 0.85rem; font-family: monospace; }
+    .testing-section .hint { color: #92400e; font-size: 0.75rem; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -79,14 +106,39 @@
         <input type="text" id="paper-id" placeholder="e.g. smith2024_gut_microbiome">
       </div>
       <div>
-        <label for="pdf-file">PDF / DOCX</label>
-        <input type="file" id="pdf-file" accept=".pdf,.docx">
+        <label for="pdf-file">Paper file</label>
+        <input type="file" id="pdf-file">
+      </div>
+      <div>
+        <label for="model-select">Model</label>
+        <select id="model-select">
+          <option value="haiku">Haiku (~15 credits)</option>
+          <option value="sonnet">Sonnet (~90 credits)</option>
+          <option value="opus">Opus (~80 credits)</option>
+        </select>
+        <div class="model-hint" id="model-hint"></div>
       </div>
       <button type="submit" id="submit-btn" style="margin-top:0; height:38px;">Submit</button>
     </form>
     <div class="extracting" id="extracting-indicator">Extracting title from file...</div>
 
     <div class="rate-warning" id="rate-warning"></div>
+
+    <div class="testing-toggle" onclick="document.getElementById('testing-section').classList.toggle('visible')">
+      &#9881; Testing options...
+    </div>
+    <div class="testing-section" id="testing-section">
+      <label for="oauth-token-input">OAuth Token <span style="font-weight:normal;">(overrides server key — for testing only)</span></label>
+      <input type="password" id="oauth-token-input" placeholder="CLAUDE_CODE_OAUTH_TOKEN">
+      <div class="hint">Token is sent per-request and not stored. Bypasses budget limits when provided.</div>
+      <label style="margin-top:10px;">
+        <input type="checkbox" id="quick-test-check"> Quick test <span style="font-weight:normal;">(only items 1.1 &amp; 1.2 — much faster)</span>
+      </label>
+      <div style="margin-top:4px;">
+        <label for="custom-items" style="font-size:0.8rem;">Or specify items: <span style="font-weight:normal;">comma-separated, e.g. 1.1,1.2,2.1</span></label>
+        <input type="text" id="custom-items" placeholder="1.1,1.2" style="border-color:#d97706;font-size:0.85rem;">
+      </div>
+    </div>
 
     <h2>Jobs</h2>
     <div id="jobs-area">
@@ -98,12 +150,16 @@
   <div id="page-detail" class="page">
     <a class="back-link" onclick="showJobsPage()">&larr; Back to jobs</a>
     <div class="detail-title" id="detail-title"></div>
+    <div class="detail-meta" id="detail-meta"></div>
+    <div id="detail-trace-link"></div>
     <div id="detail-results"></div>
   </div>
 
   <script>
     const jobs = new Map();
     let pollTimer = null;
+    let userCredits = null;
+    let isAdmin = false;
 
     // --- Page navigation ---
     function showJobsPage() {
@@ -122,11 +178,34 @@
       const resp = await fetch("/api/auth/me");
       const data = await resp.json();
       const bar = document.getElementById("auth-bar");
+      isAdmin = !!data.is_admin;
       if (data.logged_in) {
-        bar.innerHTML = `<span class="user-info">${data.name || "Researcher"} &middot; <span class="orcid-id">${data.orcid}</span></span> <a href="/api/auth/logout">Sign out</a>`;
+        const adminBadge = isAdmin ? ' <span style="background:#7c3aed;color:white;padding:2px 6px;border-radius:4px;font-size:0.75rem;">admin</span>' : '';
+        bar.innerHTML = `<span class="user-info">${data.name || "Researcher"} &middot; <span class="orcid-id">${data.orcid}</span>${adminBadge}</span> <span id="credits-badge"></span> <a href="/api/auth/logout">Sign out</a>`;
       } else {
-        bar.innerHTML = `<span class="anon-notice">Anonymous (3 jobs/hour limit)</span> <a href="/api/auth/login">Sign in with ORCID</a>`;
+        bar.innerHTML = `<span class="anon-notice">Anonymous (3 jobs/hour limit)</span> <span id="credits-badge"></span> <a href="/api/auth/login">Sign in with ORCID</a>`;
       }
+      fetchCredits();
+    }
+
+    // --- Credits ---
+    async function fetchCredits() {
+      const resp = await fetch("/api/budget");
+      if (!resp.ok) return;
+      const data = await resp.json();
+      userCredits = data;
+      renderCredits();
+    }
+
+    function renderCredits() {
+      const badge = document.getElementById("credits-badge");
+      if (!badge || !userCredits) return;
+      const remaining = Math.round(userCredits.credits_remaining);
+      let cls = "credits-green";
+      if (remaining <= 0) cls = "credits-red";
+      else if (remaining <= 100) cls = "credits-yellow";
+      badge.className = `credits-badge ${cls}`;
+      badge.textContent = `${remaining} credits`;
     }
 
     // --- Load existing jobs on page load ---
@@ -139,6 +218,7 @@
           jobs.set(job.job_id, {
             paper_id: job.paper_id,
             status: job.status,
+            model: job.model || "",
             submitted_at: job.submitted_at,
             completed_at: job.completed_at,
             results: null,
@@ -185,21 +265,61 @@
       e.preventDefault();
       const paperIdInput = document.getElementById("paper-id");
       const paperId = paperIdInput.value.trim();
+      const fileInput = document.getElementById("pdf-file");
+      const modelSelect = document.getElementById("model-select");
+      const model = modelSelect.value;
+      const btn = document.getElementById("submit-btn");
+
+      // Validate PDF
+      if (!fileInput.files || !fileInput.files[0]) {
+        const warn = document.getElementById("rate-warning");
+        warn.textContent = "Please select a file to upload.";
+        warn.className = "rate-warning visible";
+        return;
+      }
+
       if (!paperId) {
         paperIdInput.focus();
         paperIdInput.placeholder = "Please enter a paper ID or attach a file";
         return;
       }
 
-      const btn = document.getElementById("submit-btn");
       btn.disabled = true;
-      btn.textContent = "Submitting...";
+      btn.textContent = "Uploading...";
       document.getElementById("rate-warning").className = "rate-warning";
+
+      // Read file as base64
+      const file = fileInput.files[0];
+      const base64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.readAsDataURL(file);
+      });
+
+      btn.textContent = "Submitting...";
+
+      const submitBody = {
+        paper_id: paperId,
+        model: model,
+        pdf_base64: base64,
+        filename: file.name,
+      };
+      const oauthInput = document.getElementById("oauth-token-input");
+      if (oauthInput && oauthInput.value.trim()) {
+        submitBody.oauth_token = oauthInput.value.trim();
+      }
+      const customItems = document.getElementById("custom-items").value.trim();
+      const quickTest = document.getElementById("quick-test-check").checked;
+      if (customItems) {
+        submitBody.item_ids = customItems.split(",").map(s => s.trim()).filter(Boolean);
+      } else if (quickTest) {
+        submitBody.item_ids = ["1.1", "1.2"];
+      }
 
       const resp = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paper_id: paperId }),
+        body: JSON.stringify(submitBody),
       });
 
       const result = await resp.json();
@@ -213,17 +333,24 @@
         return;
       }
 
-      jobs.set(result.job_id, { paper_id: paperId, status: "running", submitted_at: Date.now() / 1000, results: null });
+      jobs.set(result.job_id, {
+        paper_id: paperId,
+        status: "running",
+        model: model,
+        submitted_at: Date.now() / 1000,
+        results: null,
+      });
       paperIdInput.value = "";
-      document.getElementById("pdf-file").value = "";
+      fileInput.value = "";
       renderJobs();
       startPolling();
+      fetchCredits();
     });
 
     // --- Polling ---
     function startPolling() {
       if (pollTimer) return;
-      pollTimer = setInterval(pollRunningJobs, 2000);
+      pollTimer = setInterval(pollRunningJobs, 3000);
     }
 
     async function pollRunningJobs() {
@@ -238,10 +365,20 @@
         if (!resp.ok) continue;
         const data = await resp.json();
         job.progress = data.progress || "";
+        job.rated_count = data.rated_count || 0;
+        job.total_items = data.total_items || 0;
+        job.cost_usd = data.cost_usd;
+        job.duration_s = data.duration_s;
+        job.model = data.model || job.model;
         if (data.status === "complete") {
           job.status = "complete";
           job.results = data.results;
           job.completed_at = data.completed_at;
+          fetchCredits();
+        } else if (data.status === "failed") {
+          job.status = "failed";
+          job.progress = data.progress || "Failed";
+          job.error_log = data.error_log || "";
         }
       }
       renderJobs();
@@ -255,23 +392,37 @@
         return;
       }
       let html = `<table class="jobs-table">
-        <thead><tr><th>Paper ID</th><th>Status</th><th>Submitted</th><th></th></tr></thead>
+        <thead><tr><th>Paper ID</th><th>Model</th><th>Status</th><th>Submitted</th><th></th></tr></thead>
         <tbody>`;
       const entries = [...jobs.entries()].reverse();
       for (const [jobId, job] of entries) {
         const t = new Date(job.submitted_at * 1000).toLocaleTimeString();
-        const statusCls = job.status === "complete" ? "status-complete" : "status-running";
-        const statusText = job.status === "running"
-          ? (job.progress || "running...")
-          : job.status;
-        const viewBtn = job.status === "complete"
-          ? `<button class="btn-sm" onclick="showDetail('${jobId}')">View</button>`
-          : "";
+        let statusCls = "status-running";
+        if (job.status === "complete") statusCls = "status-complete";
+        else if (job.status === "failed") statusCls = "status-failed";
+
+        let statusText = job.status;
+        if (job.status === "running") {
+          statusText = job.progress || "running...";
+        } else if (job.status === "failed") {
+          const msg = job.progress || "failed";
+          statusText = msg.length > 60 ? msg.slice(0, 60) + "..." : msg;
+        }
+
+        let actionBtn = "";
+        if (job.status === "complete") {
+          actionBtn = `<button class="btn-sm" onclick="showDetail('${jobId}')">View</button>`;
+        } else if (job.status === "failed") {
+          actionBtn = `<button class="btn-sm" onclick="showLogs('${jobId}')" style="background:#dc2626;">Logs</button>`;
+        } else if (job.status === "running" && isAdmin) {
+          actionBtn = `<button class="btn-sm" onclick="showLogs('${jobId}')" style="background:#7c3aed;">Live</button>`;
+        }
         html += `<tr>
           <td>${job.paper_id}</td>
+          <td>${job.model || ""}</td>
           <td class="${statusCls}">${statusText}</td>
           <td>${t}</td>
-          <td>${viewBtn}</td>
+          <td>${actionBtn}</td>
         </tr>`;
       }
       html += `</tbody></table>`;
@@ -285,18 +436,88 @@
         fetch("/api/status/" + jobId).then(r => r.json()).then(data => {
           if (data.results) {
             job.results = data.results;
-            renderDetail(job);
+            job.cost_usd = data.cost_usd;
+            job.duration_s = data.duration_s;
+            job.model = data.model || job.model;
+            renderDetail(jobId, job);
             showDetailPage();
           }
         });
         return;
       }
-      renderDetail(job);
+      renderDetail(jobId, job);
       showDetailPage();
     }
 
-    function renderDetail(job) {
+    function showLogs(jobId) {
+      const job = jobs.get(jobId);
+      if (!job) return;
+
+      // Always fetch fresh status for live logs
+      fetch("/api/status/" + jobId).then(r => r.json()).then(data => {
+        job.error_log = data.error_log || job.error_log;
+        job.live_log = data.live_log || "";
+        job.progress = data.progress || job.progress;
+        job.elapsed_s = data.elapsed_s;
+        job.rated_count = data.rated_count;
+        job.total_items = data.total_items;
+        job.work_dir_files = data.work_dir_files;
+        job.status = data.status || job.status;
+        renderLogs(jobId, job);
+        showDetailPage();
+      });
+    }
+
+    function renderLogs(jobId, job) {
+      const isRunning = job.status === "running";
+      const title = isRunning ? `${job.paper_id} — Live Logs` : `${job.paper_id} — Error Log`;
+      const statusColor = isRunning ? "#d97706" : "#dc2626";
+      const statusLabel = isRunning ? "running" : "failed";
+
+      document.getElementById("detail-title").textContent = title;
+
+      let metaHtml = `<span>Status: <strong style="color:${statusColor};">${statusLabel}</strong></span>`;
+      if (job.model) metaHtml += `<span>Model: <strong>${job.model}</strong></span>`;
+      if (job.elapsed_s) metaHtml += `<span>Elapsed: <strong>${Math.round(job.elapsed_s)}s</strong></span>`;
+      if (job.rated_count) metaHtml += `<span>Progress: <strong>${job.rated_count}/${job.total_items || "?"}</strong></span>`;
+      document.getElementById("detail-meta").innerHTML = metaHtml;
+
+      // Work dir files
+      let filesHtml = "";
+      if (job.work_dir_files && Object.keys(job.work_dir_files).length > 0) {
+        filesHtml = `<div style="margin-bottom:12px;"><strong>Work directory:</strong><ul style="margin:4px 0 0 20px;font-size:0.85rem;">`;
+        for (const [name, size] of Object.entries(job.work_dir_files)) {
+          const kb = (size / 1024).toFixed(1);
+          filesHtml += `<li>${name} (${kb} KB)</li>`;
+        }
+        filesHtml += `</ul></div>`;
+      }
+
+      document.getElementById("detail-trace-link").innerHTML = isRunning
+        ? `<button class="btn-sm" onclick="showLogs('${jobId}')" style="background:#7c3aed;">Refresh</button>`
+        : "";
+
+      const container = document.getElementById("detail-results");
+      const logText = job.live_log || job.error_log || job.progress || "No details available";
+      const escaped = logText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      container.innerHTML = `${filesHtml}<div class="error-log">${escaped}</div>`;
+    }
+
+    function renderDetail(jobId, job) {
       document.getElementById("detail-title").textContent = job.paper_id;
+
+      // Meta line
+      const meta = document.getElementById("detail-meta");
+      let metaHtml = "";
+      if (job.model) metaHtml += `<span>Model: <strong>${job.model}</strong></span>`;
+      if (job.cost_usd != null) metaHtml += `<span>Cost: <strong>$${job.cost_usd.toFixed(4)}</strong></span>`;
+      if (job.duration_s != null) metaHtml += `<span>Duration: <strong>${Math.round(job.duration_s)}s</strong></span>`;
+      meta.innerHTML = metaHtml;
+
+      // Trace download link
+      const traceDiv = document.getElementById("detail-trace-link");
+      traceDiv.innerHTML = `<a class="trace-link" href="/api/trace/${jobId}" download>Download trace JSON</a>`;
+
       const container = document.getElementById("detail-results");
 
       const s = job.results.summary;
@@ -311,8 +532,9 @@
         <thead><tr><th>Item</th><th>Rating</th><th>Comments</th></tr></thead>
         <tbody>`;
       for (const a of job.results.assessments) {
-        const cls = "rating-" + a.rating.toLowerCase();
-        html += `<tr><td>${a.item_id}</td><td class="${cls}">${a.rating}</td><td>${a.comments}</td></tr>`;
+        const rating = a.rating || "—";
+        const cls = a.rating ? "rating-" + a.rating.toLowerCase() : "";
+        html += `<tr><td>${a.item_id}</td><td class="${cls}">${rating}</td><td>${a.comments || ""}</td></tr>`;
       }
       html += `</tbody></table>`;
       container.innerHTML = html;

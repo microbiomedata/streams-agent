@@ -1,7 +1,8 @@
 export async function onRequestPost(context) {
-  const modalUrl = context.env.MODAL_SUBMIT_URL;
+  const base = context.env.MODAL_BASE_URL; // e.g. https://cmungall--streams-agent-prototype
+  const modalUrl = base ? `${base}-submit.modal.run` : context.env.MODAL_SUBMIT_URL;
   if (!modalUrl) {
-    return new Response(JSON.stringify({ error: "MODAL_SUBMIT_URL not configured" }), {
+    return new Response(JSON.stringify({ error: "MODAL_BASE_URL not configured" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

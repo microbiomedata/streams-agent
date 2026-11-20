@@ -1,7 +1,8 @@
 export async function onRequestGet(context) {
-  const modalUrl = context.env.MODAL_JOBS_URL;
+  const base = context.env.MODAL_BASE_URL;
+  const modalUrl = base ? `${base}-jobs.modal.run` : context.env.MODAL_JOBS_URL;
   if (!modalUrl) {
-    return new Response(JSON.stringify({ error: "MODAL_JOBS_URL not configured" }), {
+    return new Response(JSON.stringify({ error: "MODAL_BASE_URL not configured" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

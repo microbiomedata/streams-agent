@@ -1,7 +1,8 @@
 export async function onRequestPost(context) {
-  const modalUrl = context.env.MODAL_EXTRACT_TITLE_URL;
+  const base = context.env.MODAL_BASE_URL;
+  const modalUrl = base ? `${base}-extract-title.modal.run` : context.env.MODAL_EXTRACT_TITLE_URL;
   if (!modalUrl) {
-    return new Response(JSON.stringify({ error: "MODAL_EXTRACT_TITLE_URL not configured" }), {
+    return new Response(JSON.stringify({ error: "MODAL_BASE_URL not configured" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

@@ -1,11 +1,13 @@
 export async function onRequestGet(context) {
+  const adminOrcids = (context.env.ADMIN_ORCIDS || "").split(",").map(s => s.trim()).filter(Boolean);
   const session = parseSession(context.request);
   if (session) {
-    return new Response(JSON.stringify({ logged_in: true, orcid: session.orcid, name: session.name }), {
+    const isAdmin = adminOrcids.includes(session.orcid);
+    return new Response(JSON.stringify({ logged_in: true, orcid: session.orcid, name: session.name, is_admin: isAdmin }), {
       headers: { "Content-Type": "application/json" },
     });
   }
-  return new Response(JSON.stringify({ logged_in: false }), {
+  return new Response(JSON.stringify({ logged_in: false, is_admin: false }), {
     headers: { "Content-Type": "application/json" },
   });
 }
