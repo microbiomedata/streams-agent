@@ -20,6 +20,8 @@ dependencies = [
   "pydantic-ai>=1.1.0",
   "pymupdf>=1.26.5",
   "gradio>=5.49.1",
+  "linkml-reference-validator>=0.1.7",
+  "claude-agent-sdk>=0.1.0",
 ]
 
 [dependency-groups]
