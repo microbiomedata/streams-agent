@@ -198,16 +198,22 @@ def parse_completed_csv(
 # ---------------------------------------------------------------------------
 
 
-def prepare_yaml_workspace(template_path: Path, work_dir: Path) -> Path:
+def prepare_yaml_workspace(
+    template_path: Path,
+    work_dir: Path,
+    item_ids: list[str] | None = None,
+) -> Path:
     """Prepare a lean YAML checklist from the STREAMS CSV template.
 
-    Extracts only the item id and title from the template — enough context
-    for the agent to know what each item is, without the bulky examples and
-    guidance columns that bloat the working file.
+    Extracts item id, title, and description from the template — enough
+    context for the agent to evaluate each item, without the bulky examples
+    and guidance columns that bloat the working file.
 
     Args:
         template_path: Path to the STREAMS CSV template file.
         work_dir: Directory where the prepared YAML will be written.
+        item_ids: If provided, only include these item IDs.  Useful for
+            quick testing with a subset of the checklist.
 
     Returns:
         Path to the newly created ``checklist.yaml``.
@@ -226,23 +232,38 @@ def prepare_yaml_workspace(template_path: Path, work_dir: Path) -> Path:
         '1'
         >>> items[0]["rating"] is None
         True
+        >>> out2 = prepare_yaml_workspace(template, Path(td), item_ids=["1.1", "1.2"])
+        >>> with open(out2) as f:
+        ...     items2 = yaml.safe_load(f)
+        >>> len(items2)
+        2
+        >>> [i["id"] for i in items2]
+        ['1.1', '1.2']
     """
     with open(template_path, newline="") as f:
         reader = csv.reader(f)
         rows = list(reader)
+
+    filter_set = set(item_ids) if item_ids else None
 
     items: list[dict] = []
     for row in rows[_HEADER_ROWS:]:
         item_id = row[0].strip() if row else ""
         if not item_id or not item_id[0].isdigit():
             continue
+        if filter_set and item_id not in filter_set:
+            continue
         title = row[1].strip() if len(row) > 1 else ""
-        items.append({
+        description = row[2].strip() if len(row) > 2 else ""
+        entry: dict = {
             "id": item_id,
             "title": title,
-            "rating": None,
-            "comments": None,
-        })
+        }
+        if description:
+            entry["description"] = description
+        entry["rating"] = None
+        entry["comments"] = None
+        items.append(entry)
 
     output_path = work_dir / "checklist.yaml"
     with open(output_path, "w") as f:
@@ -364,8 +385,9 @@ def validate_checklist_yaml(
             f"{len(unrated)} items still unrated: {', '.join(unrated)}"
         )
 
-    # Check for missing expected IDs
+    # Check for missing and unexpected IDs
     if expected_ids is not None:
+        expected_set = set(expected_ids)
         present_ids = {
             str(item.get("id", ""))
             for item in items
@@ -375,6 +397,16 @@ def validate_checklist_yaml(
         if missing:
             errors.append(
                 f"{len(missing)} expected items missing: {', '.join(missing)}"
+            )
+        unexpected = [
+            str(item.get("id", "?"))
+            for item in items
+            if isinstance(item, dict) and str(item.get("id", "")) not in expected_set
+        ]
+        if unexpected:
+            errors.append(
+                f"{len(unexpected)} unexpected items added — remove them, "
+                f"only rate items from the original checklist: {', '.join(unexpected)}"
             )
 
     return errors

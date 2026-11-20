@@ -7,18 +7,13 @@ from pathlib import Path
 from streams_agent.agentic_review.engine import _load_prompt
 
 
-def test_load_system_prompt():
-    """System prompt loads from markdown file."""
-    prompt = _load_prompt("system_prompt.md")
-    assert "STREAMS" in prompt
-    assert "Rating Values" in prompt
-
-
 def test_load_user_prompt_with_substitution():
     """User prompt loads and substitutes variables."""
     prompt = _load_prompt("user_prompt.md", pdf_path="/tmp/paper.pdf", checklist_path="/tmp/checklist.yaml")
     assert "/tmp/paper.pdf" in prompt
     assert "/tmp/checklist.yaml" in prompt
+    assert "Rating Values" in prompt
+    assert "checklist reviewer" in prompt
 
 
 def test_agentic_review_cli_help():

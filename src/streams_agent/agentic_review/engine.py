@@ -11,6 +11,8 @@ from dataclasses import asdict
 from importlib import resources
 from pathlib import Path
 
+import anyio
+
 from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
@@ -24,9 +26,62 @@ from claude_agent_sdk import (
     query,
 )
 
-from streams_agent.models.checklist import ChecklistAssessment
+# ---------------------------------------------------------------------------
+# Monkey-patch for claude-agent-sdk #554/#595: stdin closes too early,
+# breaking hook callbacks.  For string prompts the SDK calls
+# transport.end_input() immediately after writing the user message,
+# closing the bidirectional channel that hooks need.
+# Remove once the SDK ships a fix (watch PRs #580, #595).
+# https://github.com/anthropics/claude-agent-sdk-python/issues/554
+# ---------------------------------------------------------------------------
+from claude_agent_sdk._internal.client import InternalClient as _IC  # noqa: E402
 
-from .csv_utils import (
+_original_process_query = _IC.process_query
+
+
+async def _patched_process_query(self, prompt, options, transport=None):  # type: ignore[no-untyped-def]
+    """Wrap process_query to keep stdin open for hooks on string prompts.
+
+    Converts the string prompt into an async iterable so it routes through
+    ``stream_input()`` (which keeps stdin open) instead of the direct
+    ``write + end_input()`` path.  The generator blocks on an event after
+    yielding the user message.  When ResultMessage arrives the event is
+    set, the generator finishes, ``stream_input`` calls ``end_input()``,
+    and the CLI exits — all in the correct task context.
+    """
+    has_hooks = bool(options.hooks)
+
+    if isinstance(prompt, str) and has_hooks:
+        user_message = {
+            "type": "user",
+            "session_id": "",
+            "message": {"role": "user", "content": prompt},
+            "parent_tool_use_id": None,
+        }
+        done = anyio.Event()
+
+        async def _single_message_stream():  # type: ignore[no-untyped-def]
+            yield user_message
+            # Block until the result arrives so stdin stays open for hooks.
+            # stream_input will call end_input() once we return.
+            await done.wait()
+
+        async for msg in _original_process_query(
+            self, _single_message_stream(), options, transport
+        ):
+            yield msg
+            if isinstance(msg, ResultMessage):
+                done.set()
+    else:
+        async for msg in _original_process_query(self, prompt, options, transport):
+            yield msg
+
+
+_IC.process_query = _patched_process_query  # type: ignore[assignment]
+
+from streams_agent.models.checklist import ChecklistAssessment  # noqa: E402
+
+from .csv_utils import (  # noqa: E402
     get_expected_ids,
     parse_completed_yaml,
     prepare_yaml_workspace,
@@ -37,8 +92,8 @@ logger = logging.getLogger(__name__)
 
 #: Short name → full model ID mapping for convenience.
 MODEL_ALIASES: dict[str, str] = {
-    "opus": "claude-opus-4-5-20250514",
-    "sonnet": "claude-sonnet-4-5-20250514",
+    "opus": "claude-opus-4-6",
+    "sonnet": "claude-sonnet-4-6",
     "haiku": "claude-haiku-4-5-20251001",
 }
 
@@ -55,9 +110,9 @@ def _resolve_model(model: str | None) -> str | None:
 
     Examples:
         >>> _resolve_model("sonnet")
-        'claude-sonnet-4-5-20250514'
-        >>> _resolve_model("claude-opus-4-5-20250514")
-        'claude-opus-4-5-20250514'
+        'claude-sonnet-4-6'
+        >>> _resolve_model("claude-opus-4-6")
+        'claude-opus-4-6'
         >>> _resolve_model(None) is None
         True
     """
@@ -197,6 +252,7 @@ async def _run_review_async(
     model: str | None = None,
     verbosity: int = 0,
     trace_path: Path | None = None,
+    item_ids: list[str] | None = None,
 ) -> ChecklistAssessment:
     """Run an agentic review (async implementation).
 
@@ -210,6 +266,8 @@ async def _run_review_async(
                full model ID, or ``None`` for the SDK default.
         verbosity: Verbosity level (0=quiet, 1=tool calls, 2=+text, 3=+everything).
         trace_path: If set, save the full message trace as JSON to this path.
+        item_ids: If set, only evaluate these checklist item IDs (e.g.
+            ``["1.1", "1.2"]``).  Useful for quick testing.
 
     Returns:
         ChecklistAssessment populated from the agent's YAML edits.
@@ -226,10 +284,10 @@ async def _run_review_async(
         work_dir = Path(tempfile.mkdtemp(prefix="agentic_review_"))
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    checklist_path = prepare_yaml_workspace(template_path, work_dir)
+    checklist_path = prepare_yaml_workspace(template_path, work_dir, item_ids=item_ids)
+    input_yaml = checklist_path.read_text()  # Capture blank template before agent fills it
     expected_ids = get_expected_ids(checklist_path)
 
-    system_prompt = _load_prompt("system_prompt.md")
     user_prompt = _load_prompt(
         "user_prompt.md",
         pdf_path=str(pdf_path),
@@ -241,8 +299,9 @@ async def _run_review_async(
     validation_hook = _make_validation_hook(checklist_path, expected_ids)
 
     options = ClaudeAgentOptions(
-        system_prompt=system_prompt,
         model=resolved_model,
+        max_buffer_size=50 * 1024 * 1024,  # 50 MB — PDFs exceed the 1 MB default
+        extra_args={"strict-mcp-config": None},  # Ignore user's MCP servers
         allowed_tools=["Read", "Write", "Edit"],
         permission_mode="bypassPermissions",
         hooks={
@@ -273,6 +332,9 @@ async def _run_review_async(
                 "session_id": message.session_id,
             }
 
+    # Read the completed YAML for inclusion in trace and return value
+    completed_yaml = checklist_path.read_text()
+
     if trace_path is not None:
         trace_path = Path(trace_path)
         trace_path.parent.mkdir(parents=True, exist_ok=True)
@@ -282,8 +344,11 @@ async def _run_review_async(
                 "paper_id": paper_id,
                 "pdf_path": str(pdf_path),
                 "timestamp": timestamp,
+                "item_ids": item_ids,
                 **result_metadata,
             },
+            "input_yaml": input_yaml,
+            "checklist_yaml": completed_yaml,
             "messages": trace,
         }
         with open(trace_path, "w") as f:
@@ -304,6 +369,7 @@ def run_review(
     model: str | None = None,
     verbosity: int = 0,
     trace_path: Path | None = None,
+    item_ids: list[str] | None = None,
 ) -> ChecklistAssessment:
     """Run an agentic review of a PDF against a STREAMS checklist.
 
@@ -321,6 +387,8 @@ def run_review(
                full model ID, or ``None`` for the SDK default.
         verbosity: Verbosity level (0=quiet, 1=tool calls, 2=+text, 3=+everything).
         trace_path: If set, save the full message trace as JSON to this path.
+        item_ids: If set, only evaluate these checklist item IDs (e.g.
+            ``["1.1", "1.2"]``).  Useful for quick testing.
 
     Returns:
         ChecklistAssessment populated from the agent's YAML edits.
@@ -335,5 +403,6 @@ def run_review(
             model=model,
             verbosity=verbosity,
             trace_path=trace_path,
+            item_ids=item_ids,
         )
     )

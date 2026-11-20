@@ -257,6 +257,21 @@ def test_validate_checklist_yaml_missing_items(tmp_path: Path) -> None:
     assert any("missing" in e.lower() for e in errors)
 
 
+def test_validate_checklist_yaml_unexpected_items(tmp_path: Path) -> None:
+    """Extra items not in the expected list produce errors."""
+    yaml_path = tmp_path / "checklist.yaml"
+    items = [
+        {"id": "1.1", "title": "X", "rating": "Yes", "comments": "ok"},
+        {"id": "1.2", "title": "Y", "rating": "Yes", "comments": "ok"},
+        {"id": "99", "title": "Invented", "rating": "Yes", "comments": "extra"},
+    ]
+    with open(yaml_path, "w") as f:
+        yaml.dump(items, f, sort_keys=False)
+
+    errors = validate_checklist_yaml(yaml_path, expected_ids=["1.1", "1.2"])
+    assert any("unexpected" in e.lower() and "99" in e for e in errors)
+
+
 def test_validate_checklist_yaml_syntax_error(tmp_path: Path) -> None:
     """Malformed YAML (e.g. unquoted colons) returns a helpful syntax error."""
     yaml_path = tmp_path / "checklist.yaml"

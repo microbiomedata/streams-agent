@@ -317,6 +317,7 @@ def agentic_review(
     model: Annotated[Optional[str], typer.Option(help="Model: 'opus', 'sonnet', 'haiku', or full model ID")] = None,
     verbose: Annotated[int, typer.Option("-v", "--verbose", count=True, help="Increase verbosity (-v, -vv, -vvv)")] = 0,
     trace: Annotated[Optional[Path], typer.Option(help="Save full message trace as JSON to this path")] = None,
+    items: Annotated[Optional[str], typer.Option(help="Comma-separated checklist item IDs to evaluate, e.g. '1.1,1.2'")] = None,
 ):
     """Review a PDF using the agentic review engine (Claude Agent SDK).
 
@@ -326,13 +327,21 @@ def agentic_review(
     Use --model to pick a model: 'sonnet' (default), 'opus' for heavyweight,
     'haiku' for lightweight, or a full model ID like 'claude-sonnet-4-5-20250514'.
 
-    Requires ANTHROPIC_API_KEY environment variable to be set.
+    Use --items to evaluate only a subset of the checklist for quick testing:
+
+        uv run streams-agent agentic-review paper.pdf --items 1.1,1.2 --model haiku
+
+    Requires ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN environment variable.
     """
     from .agentic_review import run_review
 
     if model:
         from .agentic_review.engine import _resolve_model
         typer.echo(f"Model: {_resolve_model(model)}")
+
+    item_ids = [s.strip() for s in items.split(",") if s.strip()] if items else None
+    if item_ids:
+        typer.echo(f"Quick test: evaluating only items {', '.join(item_ids)}")
 
     typer.echo(f"Reviewing {pdf_path} using agentic review engine...")
     assessment = run_review(
@@ -344,6 +353,7 @@ def agentic_review(
         model=model,
         verbosity=verbose,
         trace_path=trace,
+        item_ids=item_ids,
     )
 
     if output:
